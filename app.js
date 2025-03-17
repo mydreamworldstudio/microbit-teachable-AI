@@ -77,8 +77,8 @@ async function startPrediction() {
 
         // Update UI with the best prediction (Larger size)
         let output = document.getElementById("output");
-        output.innerText = `${topPrediction.className} (${(topPrediction.probability * 100).toFixed(2)}%)`;
-        output.style.fontSize = "24px"; // Bigger text for better visibility
+        output.innerText = `${topPrediction.className}`;
+        output.style.fontSize = "28px"; // Bigger text for better visibility
 
         sendToMicrobit(topPrediction.className);
     }, 1000); // Run every second
@@ -99,11 +99,11 @@ async function connectMicrobit() {
         console.log("✅ Connected to micro:bit Bluetooth UART.");
         alert("Connected to micro:bit successfully!");
 
-        // Auto-reconnect if disconnected
-        microbitDevice.addEventListener('gattserverdisconnected', () => {
-            console.warn("🔄 Connection lost. Reconnecting...");
-            connectMicrobit();
-        });
+        // 🔹 Update UI button
+        updateConnectionStatus(true);
+
+        // 🔄 Auto-reconnect if disconnected
+        microbitDevice.addEventListener('gattserverdisconnected', handleDisconnect);
 
     } catch (error) {
         console.error("❌ Micro:bit connection failed", error);
