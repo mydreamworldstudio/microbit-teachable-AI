@@ -24,6 +24,7 @@ body {
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    padding-top: -30px;
     transition: opacity 0.5s ease;
 }
 
@@ -72,4 +73,10 @@ video {
     margin-top: 20px;
     border: 2px solid white;
     border-radius: 5px;
+}
+
+#output {
+    font-size: 28px; /* Increase text size */
+    font-weight: bold;
+    margin-top: 10px;
 }
