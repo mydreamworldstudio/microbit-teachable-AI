@@ -2,15 +2,28 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Teachable Machine + Micro:bit</title>
-    <link rel="manifest" href="manifest.json">
-    <script defer src="app.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Teachable AI + Micro:bit</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <h1>Teachable Machine PWA</h1>
-    <video id="webcam" autoplay playsinline></video>
-    <button onclick="connectMicrobit()">Connect Micro:bit</button>
-    <button onclick="startPrediction()">Start Prediction</button>
+    <!-- First Page -->
+    <div id="page1" class="page">
+        <img src="logo.png" alt="Logo" class="logo">
+        <h1>Teachable AI + Micro:bit</h1>
+        <input type="text" id="modelUrl" placeholder="Enter Teachable Machine Model URL">
+        <button onclick="loadModel()">Load Model</button>
+    </div>
+
+    <!-- Second Page -->
+    <div id="page2" class="page hidden">
+        <img src="logo.png" alt="Logo" class="logo">
+        <h1>Teachable AI + Micro:bit</h1>
+        <button onclick="connectMicrobit()">Connect Micro:bit</button>
+        <video id="webcam" autoplay playsinline></video>
+        <div id="output">Waiting for prediction...</div>
+    </div>
+
+    <script src="app.js"></script>
 </body>
 </html>
