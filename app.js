@@ -29,8 +29,9 @@ async function loadTeachableMachineModel() {
             return;
         }
 
-        const modelURL = modelUrl + "/model.json";
-        const metadataURL = modelUrl + "/metadata.json";
+        const modelURL = modelUrl.replace(/\/+$/, '') + "/model.json";
+        const metadataURL = modelUrl.replace(/\/+$/, '') + "/metadata.json";
+
 
         model = await tmImage.load(modelURL, metadataURL);
         console.log("✅ Model loaded!");
