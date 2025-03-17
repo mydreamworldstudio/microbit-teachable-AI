@@ -1,7 +1,6 @@
 let modelUrl = "";
 let model;
 let microbitDevice;
-let microbitServer;
 let microbitCharacteristic;
 
 // Load model URL and switch to second page
@@ -24,6 +23,12 @@ function loadModel() {
 // Load Teachable Machine model
 async function loadTeachableMachineModel() {
     try {
+        if (!window.tmImage) {
+            console.error("❌ Teachable Machine library not loaded!");
+            alert("Teachable Machine library failed to load.");
+            return;
+        }
+
         const modelURL = modelUrl + "/model.json";
         const metadataURL = modelUrl + "/metadata.json";
 
@@ -60,20 +65,20 @@ async function startPrediction() {
     const video = document.getElementById("webcam");
 
     setInterval(async () => {
-        if (model) {
-            const predictions = await model.predict(video);
-            
-            // Find the class with the highest probability
-            const topPrediction = predictions.reduce((prev, current) =>
-                prev.probability > current.probability ? prev : current
-            );
+        if (!model) return;
 
-            // Update UI with the best prediction
-            document.getElementById("output").innerText = 
-                `Prediction: ${topPrediction.className} (${(topPrediction.probability * 100).toFixed(2)}%)`;
+        const predictions = await model.predict(video);
 
-            sendToMicrobit(topPrediction.className);
-        }
+        // Find the class with the highest probability
+        const topPrediction = predictions.reduce((prev, current) =>
+            prev.probability > current.probability ? prev : current
+        );
+
+        // Update UI with the best prediction
+        document.getElementById("output").innerText = 
+            `Prediction: ${topPrediction.className} (${(topPrediction.probability * 100).toFixed(2)}%)`;
+
+        sendToMicrobit(topPrediction.className);
     }, 1000); // Run every second
 }
 
@@ -85,11 +90,12 @@ async function connectMicrobit() {
             optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e'] // UART Service UUID
         });
 
-        microbitServer = await microbitDevice.gatt.connect();
-        const service = await microbitServer.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e'); 
+        const server = await microbitDevice.gatt.connect();
+        const service = await server.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e'); 
         microbitCharacteristic = await service.getCharacteristic('6e400002-b5a3-f393-e0a9-e50e24dcca9e'); 
 
         console.log("✅ Connected to micro:bit Bluetooth UART.");
+        alert("Connected to micro:bit successfully!");
     } catch (error) {
         console.error("❌ Micro:bit connection failed", error);
         alert("Failed to connect to micro:bit. Please try again.");
