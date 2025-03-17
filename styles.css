@@ -22,8 +22,9 @@ body {
     position: absolute;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
+    padding-top: 20px;
     transition: opacity 0.5s ease;
 }
 
