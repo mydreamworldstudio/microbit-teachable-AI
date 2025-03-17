@@ -151,7 +151,7 @@ async function sendToMicrobit(prediction) {
 
     try {
         const data = new TextEncoder().encode(prediction);
-        await microbitCharacteristic.writeValue(data);
+        await microbitCharacteristic.writeValueWithResponse(data);
         console.log("📡 Sent to micro:bit:", prediction);
     } catch (error) {
         console.error("❌ Failed to send data to micro:bit:", error);
