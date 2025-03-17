@@ -4,12 +4,13 @@ let microbitDevice;
 
 // Load model URL and switch to second page
 function loadModel() {
-    modelUrl = document.getElementById("modelUrl").value;
+    modelUrl = document.getElementById("modelUrl").value.trim();
     if (!modelUrl) {
         alert("Please enter a valid model URL!");
         return;
     }
-    
+
+    // Switch to second page
     document.getElementById("page1").classList.add("hidden");
     document.getElementById("page2").classList.remove("hidden");
 
@@ -20,9 +21,13 @@ function loadModel() {
 // Load Teachable Machine model
 async function loadTeachableMachineModel() {
     try {
-        model = await tmImage.load(modelUrl + "/model.json", modelUrl + "/metadata.json");
+        const modelURL = modelUrl + "/model.json";
+        const metadataURL = modelUrl + "/metadata.json";
+
+        model = await tmImage.load(modelURL, metadataURL);
         console.log("Model loaded!");
-        startPrediction();
+
+        startPrediction(); // Start predictions once model loads
     } catch (error) {
         console.error("Failed to load model:", error);
     }
@@ -31,24 +36,43 @@ async function loadTeachableMachineModel() {
 // Setup live camera feed
 async function setupCamera() {
     const video = document.getElementById("webcam");
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-    video.srcObject = stream;
+    video.setAttribute("autoplay", "");
+    video.setAttribute("playsinline", "");
+    video.style.width = "100%";
+    video.style.maxHeight = "50vh"; 
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+        console.log("Camera feed started.");
+    } catch (error) {
+        console.error("Failed to access camera:", error);
+    }
 }
 
 // Start predictions automatically
 async function startPrediction() {
     const video = document.getElementById("webcam");
-    
+
     setInterval(async () => {
         if (model) {
             const predictions = await model.predict(video);
-            document.getElementById("output").innerText = predictions[0].className;
-            sendToMicrobit(predictions[0].className);
+            
+            // Find the class with the highest probability
+            const topPrediction = predictions.reduce((prev, current) =>
+                prev.probability > current.probability ? prev : current
+            );
+
+            // Update UI with the best prediction
+            document.getElementById("output").innerText = 
+                `Prediction: ${topPrediction.className} (${(topPrediction.probability * 100).toFixed(2)}%)`;
+
+            sendToMicrobit(topPrediction.className);
         }
-    }, 1000);
+    }, 1000); // Run every second
 }
 
-// Connect to micro:bit
+// Connect to micro:bit via Bluetooth
 async function connectMicrobit() {
     try {
         microbitDevice = await navigator.bluetooth.requestDevice({
