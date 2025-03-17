@@ -1,12 +1,15 @@
 let modelUrl = "";
 let model;
 let microbitDevice;
+let microbitServer;
+let microbitCharacteristic;
 
 // Load model URL and switch to second page
 function loadModel() {
     modelUrl = document.getElementById("modelUrl").value.trim();
-    if (!modelUrl) {
-        alert("Please enter a valid model URL!");
+    
+    if (!modelUrl.startsWith("https://teachablemachine.withgoogle.com/models/")) {
+        alert("Please enter a valid Teachable Machine model URL!");
         return;
     }
 
@@ -25,11 +28,12 @@ async function loadTeachableMachineModel() {
         const metadataURL = modelUrl + "/metadata.json";
 
         model = await tmImage.load(modelURL, metadataURL);
-        console.log("Model loaded!");
+        console.log("✅ Model loaded!");
 
-        startPrediction(); // Start predictions once model loads
+        startPrediction();
     } catch (error) {
-        console.error("Failed to load model:", error);
+        console.error("❌ Failed to load model:", error);
+        alert("Failed to load model. Please check the URL and try again.");
     }
 }
 
@@ -39,14 +43,15 @@ async function setupCamera() {
     video.setAttribute("autoplay", "");
     video.setAttribute("playsinline", "");
     video.style.width = "100%";
-    video.style.maxHeight = "50vh"; 
+    video.style.maxHeight = "50vh";
 
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
         video.srcObject = stream;
-        console.log("Camera feed started.");
+        console.log("📷 Camera feed started.");
     } catch (error) {
-        console.error("Failed to access camera:", error);
+        console.error("❌ Failed to access camera:", error);
+        alert("Camera access denied. Please enable camera permissions.");
     }
 }
 
@@ -77,15 +82,32 @@ async function connectMicrobit() {
     try {
         microbitDevice = await navigator.bluetooth.requestDevice({
             acceptAllDevices: true,
-            optionalServices: ['battery_service']
+            optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e'] // UART Service UUID
         });
-        console.log("Connected to Micro:bit");
+
+        microbitServer = await microbitDevice.gatt.connect();
+        const service = await microbitServer.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e'); 
+        microbitCharacteristic = await service.getCharacteristic('6e400002-b5a3-f393-e0a9-e50e24dcca9e'); 
+
+        console.log("✅ Connected to micro:bit Bluetooth UART.");
     } catch (error) {
-        console.error("Micro:bit connection failed", error);
+        console.error("❌ Micro:bit connection failed", error);
+        alert("Failed to connect to micro:bit. Please try again.");
     }
 }
 
-// Send prediction to micro:bit (to be expanded)
-function sendToMicrobit(prediction) {
-    console.log("Sending to Micro:bit:", prediction);
+// Send prediction to micro:bit
+async function sendToMicrobit(prediction) {
+    if (!microbitCharacteristic) {
+        console.warn("⚠️ Not connected to micro:bit. Skipping send.");
+        return;
+    }
+
+    try {
+        const data = new TextEncoder().encode(prediction);
+        await microbitCharacteristic.writeValue(data);
+        console.log("📡 Sent to micro:bit:", prediction);
+    } catch (error) {
+        console.error("❌ Failed to send data to micro:bit:", error);
+    }
 }
