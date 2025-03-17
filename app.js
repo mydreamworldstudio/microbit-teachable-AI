@@ -77,7 +77,7 @@ async function startPrediction() {
 
         // Update UI with the best prediction
         document.getElementById("output").innerText = 
-            `Prediction: ${topPrediction.className} (${(topPrediction.probability * 100).toFixed(2)}%)`;
+            `${topPrediction.className} (${(topPrediction.probability * 100).toFixed(2)}%)`;
 
         sendToMicrobit(topPrediction.className);
     }, 1000); // Run every second
