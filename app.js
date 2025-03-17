@@ -150,15 +150,15 @@ async function sendToMicrobit(prediction) {
     }
 
     try {
-        const data = new TextEncoder().encode(prediction);
+        const data = new TextEncoder().encode(prediction + "\n"); // 🔹 Append newline for micro:bit detection
         await microbitCharacteristic.writeValueWithResponse(data);
         console.log("📡 Sent to micro:bit:", prediction);
     } catch (error) {
         console.error("❌ Failed to send data to micro:bit:", error);
 
-        // If disconnected, attempt to reconnect
+        // 🔹 Check if micro:bit is disconnected and attempt to reconnect
         if (microbitDevice && !microbitDevice.gatt.connected) {
-            console.warn("🔄 Reconnecting to micro:bit...");
+            console.warn("🔄 Connection lost. Attempting to reconnect...");
             await connectMicrobit();
         }
     }
