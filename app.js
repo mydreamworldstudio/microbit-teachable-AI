@@ -7,7 +7,7 @@ let reconnecting = false;
 // Load model URL and switch to second page
 function loadModel() {
     modelUrl = document.getElementById("modelUrl").value.trim();
-    
+
     if (!modelUrl.startsWith("https://teachablemachine.withgoogle.com/models/")) {
         alert("Please enter a valid Teachable Machine model URL!");
         return;
@@ -46,10 +46,6 @@ async function loadTeachableMachineModel() {
 // Setup live camera feed
 async function setupCamera() {
     const video = document.getElementById("webcam");
-    video.setAttribute("autoplay", "");
-    video.setAttribute("playsinline", "");
-    video.style.width = "100%";
-    video.style.maxHeight = "50vh";
 
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ video: true });
@@ -70,96 +66,60 @@ async function startPrediction() {
 
         const predictions = await model.predict(video);
 
-        // Find the class with the highest probability
         const topPrediction = predictions.reduce((prev, current) =>
             prev.probability > current.probability ? prev : current
         );
 
-        // Update UI with the best prediction (Larger size)
         let output = document.getElementById("output");
         output.innerText = `${topPrediction.className}`;
-        output.style.fontSize = "28px"; // Bigger text for better visibility
 
         sendToMicrobit(topPrediction.className);
-    }, 1000); // Run every second
+    }, 1000);
 }
 
-// Connect to micro:bit via Bluetooth with filter
+// Connect to micro:bit
 async function connectMicrobit() {
     try {
         microbitDevice = await navigator.bluetooth.requestDevice({
-            filters: [{ namePrefix: "BBC micro:bit" }], // Filters for micro:bit devices
-            optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e'] // UART Service UUID
+            filters: [{ namePrefix: "BBC micro:bit" }],
+            optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e']
         });
 
         const server = await microbitDevice.gatt.connect();
-        const service = await server.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e'); 
+        const service = await server.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e');
         microbitCharacteristic = await service.getCharacteristic('6e400002-b5a3-f393-e0a9-e50e24dcca9e');
 
         console.log("✅ Connected to micro:bit Bluetooth UART.");
-        alert("Connected to micro:bit successfully!");
-
-        // 🔹 Update UI button
         updateConnectionStatus(true);
 
-        // 🔄 Auto-reconnect if disconnected
         microbitDevice.addEventListener('gattserverdisconnected', handleDisconnect);
 
     } catch (error) {
         console.error("❌ Micro:bit connection failed", error);
-        alert("Failed to connect to micro:bit. Please try again.");
+        alert("Failed to connect. Try again.");
     }
 }
 
-// Update connection button status
-function updateConnectionStatus(isConnected) {
-    const button = document.getElementById("connectButton");
-    if (isConnected) {
-        button.innerText = "Connected ✅";
-        button.style.backgroundColor = "green";
-    } else {
-        button.innerText = "Connect";
-        button.style.backgroundColor = "red";
-    }
-}
-
-// Handle micro:bit disconnection and auto-reconnect
+// Handle disconnection
 async function handleDisconnect() {
-    console.warn("⚠️ Micro:bit disconnected. Attempting to reconnect...");
+    console.warn("⚠️ Micro:bit disconnected.");
     updateConnectionStatus(false);
-
-    if (!reconnecting) {
-        reconnecting = true;
-        try {
-            await microbitDevice.gatt.connect();
-            console.log("✅ Reconnected to micro:bit!");
-            updateConnectionStatus(true);
-            reconnecting = false;
-        } catch (error) {
-            console.error("❌ Reconnection failed. Please connect manually.");
-            reconnecting = false;
-        }
-    }
 }
 
-// Send prediction to micro:bit
+// Send data to micro:bit
 async function sendToMicrobit(prediction) {
-    if (!microbitCharacteristic) {
-        console.warn("⚠️ Not connected to micro:bit. Skipping send.");
-        return;
-    }
+    if (!microbitCharacteristic) return;
 
     try {
-        const data = new TextEncoder().encode(prediction + "\n"); // 🔹 Append newline for micro:bit detection
-        await microbitCharacteristic.writeValueWithResponse(data);
+        const data = new TextEncoder().encode(prediction + "\n");
+        await microbitCharacteristic.writeValueWithoutResponse(data);
         console.log("📡 Sent to micro:bit:", prediction);
     } catch (error) {
-        console.error("❌ Failed to send data to micro:bit:", error);
-
-        // 🔹 Check if micro:bit is disconnected and attempt to reconnect
-        if (microbitDevice && !microbitDevice.gatt.connected) {
-            console.warn("🔄 Connection lost. Attempting to reconnect...");
-            await connectMicrobit();
-        }
+        console.error("❌ Failed to send:", error);
     }
+}
+
+// Update button status
+function updateConnectionStatus(isConnected) {
+    document.getElementById("connectButton").innerText = isConnected ? "Connected ✅" : "Connect";
 }
