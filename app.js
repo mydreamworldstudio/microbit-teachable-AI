@@ -2,6 +2,7 @@ let modelUrl = "";
 let model;
 let microbitDevice;
 let microbitCharacteristic;
+let rxCharacteristic;  // ✅ Added RX characteristic
 let reconnecting = false;
 let writeQueue = [];
 let lastPrediction = "";
@@ -102,7 +103,14 @@ async function connectMicrobit() {
 
         const server = await microbitDevice.gatt.connect();
         const service = await server.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e');
+
+        // ✅ TX Characteristic (Write)
         microbitCharacteristic = await service.getCharacteristic('6e400002-b5a3-f393-e0a9-e50e24dcca9e');
+
+        // ✅ RX Characteristic (Read)
+        rxCharacteristic = await service.getCharacteristic('6e400003-b5a3-f393-e0a9-e50e24dcca9e');
+        rxCharacteristic.startNotifications();
+        rxCharacteristic.addEventListener("characteristicvaluechanged", onDataReceived);
 
         console.log("✅ Connected to micro:bit Bluetooth UART.");
         updateConnectionStatus(true);
@@ -111,6 +119,21 @@ async function connectMicrobit() {
     } catch (error) {
         console.error("❌ Micro:bit connection failed", error);
         alert("Failed to connect. Try again.");
+    }
+}
+
+// ✅ Handle received data from micro:bit
+function onDataReceived(event) {
+    let receivedData = [];
+    for (var i = 0; i < event.target.value.byteLength; i++) {
+        receivedData[i] = event.target.value.getUint8(i);
+    }
+
+    const receivedString = String.fromCharCode.apply(null, receivedData);
+    console.log("📥 Received from micro:bit:", receivedString);
+
+    if (receivedString.trim() === "S") {
+        console.log("🎭 Micro:bit detected shake event!");
     }
 }
 
@@ -153,7 +176,7 @@ async function processGattQueue() {
     }
 }
 
-// Send data to micro:bit only if the prediction is different from the last sent value
+// ✅ Send data to micro:bit with a newline at the end
 async function sendToMicrobit(prediction) {
     if (!microbitCharacteristic) {
         console.warn("⚠️ Micro:bit not connected.");
@@ -168,7 +191,7 @@ async function sendToMicrobit(prediction) {
         queueGattOperation(async () => {
             try {
                 isSending = true;
-                const message = prediction; // No newline
+                const message = prediction + "\n";  // ✅ Added newline
                 const data = new TextEncoder().encode(message);
 
                 await microbitCharacteristic.writeValueWithResponse(data);
