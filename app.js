@@ -108,18 +108,18 @@ async function handleDisconnect() {
 
 // Send data to micro:bit
 async function sendToMicrobit(prediction) {
-    if (!microbitCharacteristic) return;
+    if (!microbitCharacteristic) {
+        console.warn("⚠️ Micro:bit not connected.");
+        return;
+    }
 
     try {
-        const data = new TextEncoder().encode(prediction + "\n");
-        await microbitCharacteristic.writeValueWithoutResponse(data);
-        console.log("📡 Sent to micro:bit:", prediction);
+        const message = prediction + "\n"; // Ensure a newline is added
+        const data = new TextEncoder().encode(message);
+
+        await microbitCharacteristic.writeValueWithResponse(data); // Ensure micro:bit receives it
+        console.log("📡 Sent to micro:bit:", message);
     } catch (error) {
         console.error("❌ Failed to send:", error);
     }
-}
-
-// Update button status
-function updateConnectionStatus(isConnected) {
-    document.getElementById("connectButton").innerText = isConnected ? "Connected ✅" : "Connect";
 }
