@@ -1,7 +1,4 @@
-// Global Variables
-let model, webcam, lastPrediction = "";
-
-// Load Teachable Machine Model (Made Globally Accessible)
+// Load Teachable Machine Model (Moved outside window.onload to be globally accessible)
 async function loadTeachableMachineModel() {
     const modelURL = document.getElementById("modelUrl")?.value;
     if (!modelURL) {
@@ -12,53 +9,31 @@ async function loadTeachableMachineModel() {
     try {
         console.log("📥 Loading Teachable Machine model...");
         model = await tmImage.load(modelURL + "/model.json", modelURL + "/metadata.json");
-
+        
         webcam = new tmImage.Webcam(200, 200, true);
         await webcam.setup();
         await webcam.play();
         
-        // Display the live video feed
+        // Fix: Display live webcam feed properly
         document.getElementById("webcam").appendChild(webcam.canvas);
 
         document.getElementById("page1").classList.add("hidden");
         document.getElementById("page2").classList.remove("hidden");
 
         console.log("✅ Model Loaded Successfully.");
-        startPredictionLoop(); // Now accessible
+        startPredictionLoop();
 
     } catch (error) {
         console.error("❌ Model loading failed:", error);
     }
 }
 
-// Prediction Loop (Moved Outside of window.onload)
-async function startPredictionLoop() {
-    while (true) {
-        await predict();
-        await new Promise(resolve => setTimeout(resolve, 500)); // Predict every 500ms
-    }
-}
-
-// Prediction Function
-async function predict() {
-    if (!model || !webcam) return;
-    webcam.update();
-    const predictions = await model.predict(webcam.canvas);
-
-    let bestPrediction = predictions.reduce((prev, current) => 
-        (prev.probability > current.probability ? prev : current)
-    );
-
-    if (bestPrediction.className !== lastPrediction) {
-        lastPrediction = bestPrediction.className;
-        console.log("🧠 Detected:", lastPrediction);
-        sendUART(lastPrediction);
-    }
-}
-
-// Main App Logic
 window.onload = function () {
-    let uBitDevice, rxCharacteristic, txCharacteristic;
+    let uBitDevice;
+    let rxCharacteristic;
+    let txCharacteristic;
+    let model, webcam;
+    let lastPrediction = "";
 
     // Button References
     const connectBtn = document.getElementById("connectButton");
@@ -78,7 +53,10 @@ window.onload = function () {
 
             console.log("🔗 Connecting to GATT Server...");
             await connectToGattServer();
-            enterFullScreen();
+            console.log("✅ Bluetooth Connection Successful");
+
+            // Fix: Fullscreen request only when user clicks the button
+            connectBtn.addEventListener("click", enterFullScreen);
 
         } catch (error) {
             console.error("❌ Connection failed:", error);
@@ -97,10 +75,7 @@ window.onload = function () {
             txCharacteristic = await service.getCharacteristic("6e400002-b5a3-f393-e0a9-e50e24dcca9e");
             rxCharacteristic = await service.getCharacteristic("6e400003-b5a3-f393-e0a9-e50e24dcca9e");
 
-            console.log("✅ Bluetooth Connection Successful");
-
             updateConnectionStatus(true);
-            enterFullScreen();
 
             txCharacteristic.startNotifications();
             txCharacteristic.addEventListener("characteristicvaluechanged", onTxCharacteristicValueChanged);
@@ -130,7 +105,6 @@ window.onload = function () {
                     await connectToGattServer();
                     console.log("✅ Reconnected!");
                     updateConnectionStatus(true);
-                    enterFullScreen();
                 } catch (error) {
                     console.error("❌ Reconnect failed:", error);
                 }
@@ -161,6 +135,29 @@ window.onload = function () {
         }
         const receivedString = String.fromCharCode.apply(null, receivedData);
         console.log("📥 Received from micro:bit:", receivedString);
+    }
+
+    async function startPredictionLoop() {
+        while (true) {
+            await predict();
+            await new Promise(resolve => setTimeout(resolve, 500)); // Predict every 500ms
+        }
+    }
+
+    async function predict() {
+        if (!model || !webcam) return;
+        webcam.update();
+        const predictions = await model.predict(webcam.canvas);
+
+        let bestPrediction = predictions.reduce((prev, current) => 
+            (prev.probability > current.probability ? prev : current)
+        );
+
+        if (bestPrediction.className !== lastPrediction) {
+            lastPrediction = bestPrediction.className;
+            console.log("🧠 Detected:", lastPrediction);
+            sendUART(lastPrediction);
+        }
     }
 
     function enterFullScreen() {
