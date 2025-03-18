@@ -7,7 +7,7 @@ let reconnecting = false;
 let writeQueue = [];
 let lastPrediction = "";
 let isSending = false;
-let videoStream = null; // To stop the camera later
+let videoStream = null;
 
 // Proxy object to detect prediction changes
 let predictionState = new Proxy({ value: "" }, {
@@ -21,19 +21,15 @@ let predictionState = new Proxy({ value: "" }, {
     },
 });
 
-// Load model URL and switch to second page
+// Load model and switch to second page
 function loadModel() {
     modelUrl = document.getElementById("modelUrl").value.trim();
-
     if (!modelUrl.startsWith("https://teachablemachine.withgoogle.com/models/")) {
         alert("Please enter a valid Teachable Machine model URL!");
         return;
     }
-
-    // Switch to second page
     document.getElementById("page1").classList.add("hidden");
     document.getElementById("page2").classList.remove("hidden");
-
     loadTeachableMachineModel();
     setupCamera();
 }
@@ -41,18 +37,11 @@ function loadModel() {
 // Load Teachable Machine model
 async function loadTeachableMachineModel() {
     try {
-        if (!window.tmImage) {
-            console.error("❌ Teachable Machine library not loaded!");
-            alert("Teachable Machine library failed to load.");
-            return;
-        }
-
         const modelURL = modelUrl.replace(/\/+$/, '') + "/model.json";
         const metadataURL = modelUrl.replace(/\/+$/, '') + "/metadata.json";
 
         model = await tmImage.load(modelURL, metadataURL);
         console.log("✅ Model loaded!");
-
         startPrediction();
     } catch (error) {
         console.error("❌ Failed to load model:", error);
@@ -63,7 +52,6 @@ async function loadTeachableMachineModel() {
 // Setup live camera feed
 async function setupCamera() {
     const video = document.getElementById("webcam");
-
     try {
         videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
         video.srcObject = videoStream;
@@ -86,57 +74,37 @@ function stopCamera() {
 // Start predictions automatically
 async function startPrediction() {
     const video = document.getElementById("webcam");
-
     setInterval(async () => {
         if (!model) return;
-
         const predictions = await model.predict(video);
-
         const topPrediction = predictions.reduce((prev, current) =>
             prev.probability > current.probability ? prev : current
         );
-
         document.getElementById("output").innerText = `${topPrediction.className}`;
-
-        // Update the proxy state (triggers sendToMicrobit automatically)
         predictionState.value = topPrediction.className;
-    }, 1000); // Predictions every 1 second
+    }, 1000);
 }
 
-// ✅ Scan for Available Bluetooth Services (Debugging Tool)
-async function checkAvailableServices() {
-    try {
-        const device = await navigator.bluetooth.requestDevice({
-            acceptAllDevices: true,
-            optionalServices: ['generic_access']
-        });
-
-        console.log("🔍 Available services:", device);
-    } catch (error) {
-        console.error("❌ Bluetooth scanning failed:", error);
-    }
-}
-
-// Connect to micro:bit
+// ✅ Connect to micro:bit (Using stable Bluetooth Controller Code)
 async function connectMicrobit() {
     try {
+        console.log("🔍 Searching for micro:bit...");
         microbitDevice = await navigator.bluetooth.requestDevice({
             filters: [{ namePrefix: "BBC micro:bit" }],
             optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e']
         });
 
         const server = await microbitDevice.gatt.connect();
+        console.log("✅ Connected to micro:bit Bluetooth GATT Server.");
+
         const service = await server.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e');
-
-        // ✅ TX Characteristic (Write)
         microbitCharacteristic = await service.getCharacteristic('6e400002-b5a3-f393-e0a9-e50e24dcca9e');
-
-        // ✅ RX Characteristic (Read)
         rxCharacteristic = await service.getCharacteristic('6e400003-b5a3-f393-e0a9-e50e24dcca9e');
+
         await rxCharacteristic.startNotifications();
         rxCharacteristic.addEventListener("characteristicvaluechanged", onDataReceived);
 
-        console.log("✅ Connected to micro:bit Bluetooth UART.");
+        console.log("✅ Micro:bit UART Service connected.");
         updateConnectionStatus(true);
 
         microbitDevice.addEventListener('gattserverdisconnected', handleDisconnect);
@@ -146,7 +114,7 @@ async function connectMicrobit() {
     }
 }
 
-// ✅ Handle received data from micro:bit
+// ✅ Handle received data from micro:bit (Debugging improved)
 function onDataReceived(event) {
     let receivedData = [];
     for (var i = 0; i < event.target.value.byteLength; i++) {
@@ -154,7 +122,8 @@ function onDataReceived(event) {
     }
 
     const receivedString = String.fromCharCode.apply(null, receivedData);
-    console.log("📥 Received from micro:bit:", receivedString);
+    console.log("📥 Received raw data:", receivedData);
+    console.log("📥 Received string:", receivedString);
 
     if (receivedString.trim() === "S") {
         console.log("🎭 Micro:bit detected shake event!");
@@ -165,42 +134,17 @@ function onDataReceived(event) {
 async function handleDisconnect() {
     console.warn("⚠️ Micro:bit disconnected.");
     updateConnectionStatus(false);
-
     if (!reconnecting) {
         reconnecting = true;
         setTimeout(() => {
             console.log("🔄 Attempting to reconnect...");
             connectMicrobit();
             reconnecting = false;
-        }, 3000); // Try reconnecting after 3 seconds
+        }, 3000);
     }
 }
 
-// Queue for handling BLE write operations
-function queueGattOperation(operation) {
-    writeQueue.push(operation);
-
-    if (writeQueue.length === 1) {
-        processGattQueue();
-    }
-}
-
-async function processGattQueue() {
-    if (writeQueue.length === 0) return;
-
-    try {
-        await writeQueue[0]();
-        writeQueue.shift();
-    } catch (error) {
-        console.error("❌ BLE write failed:", error);
-    } finally {
-        if (writeQueue.length > 0) {
-            processGattQueue();
-        }
-    }
-}
-
-// ✅ Send data to micro:bit using "writeValueWithoutResponse()"
+// ✅ Send data to micro:bit (Improved)
 async function sendToMicrobit(prediction) {
     if (!microbitCharacteristic) {
         console.warn("⚠️ Micro:bit not connected.");
@@ -218,8 +162,7 @@ async function sendToMicrobit(prediction) {
                 const message = prediction + "\n";
                 const data = new TextEncoder().encode(message);
 
-                // ✅ Use `writeValueWithoutResponse()`
-                await microbitCharacteristic.writeValueWithoutResponse(data);
+                await microbitCharacteristic.writeValueWithResponse(data);
                 console.log("📡 Sent to micro:bit:", message);
 
                 lastPrediction = prediction;
@@ -232,7 +175,29 @@ async function sendToMicrobit(prediction) {
     }
 }
 
-// Update button status
+// ✅ Queue system for BLE operations (Avoids Overloading)
+function queueGattOperation(operation) {
+    writeQueue.push(operation);
+    if (writeQueue.length === 1) {
+        processGattQueue();
+    }
+}
+
+async function processGattQueue() {
+    if (writeQueue.length === 0) return;
+    try {
+        await writeQueue[0]();
+        writeQueue.shift();
+    } catch (error) {
+        console.error("❌ BLE write failed:", error);
+    } finally {
+        if (writeQueue.length > 0) {
+            processGattQueue();
+        }
+    }
+}
+
+// ✅ Update UI Connection Status
 function updateConnectionStatus(isConnected) {
     const connectButton = document.getElementById("connectButton");
     if (connectButton) {
