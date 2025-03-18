@@ -3,8 +3,20 @@ let model;
 let microbitDevice;
 let microbitCharacteristic;
 let reconnecting = false;
-let isSending = false; // Prevents multiple writes at once
-let lastPrediction = ""; // Store last sent prediction
+let writeQueue = [];
+let lastPrediction = "";
+
+// Proxy object to detect prediction changes
+let predictionState = new Proxy({ value: "" }, {
+    set: function (obj, prop, newValue) {
+        if (prop === "value" && obj[prop] !== newValue) {
+            console.log("🧠 Detected:", newValue);
+            sendToMicrobit(newValue);
+        }
+        obj[prop] = newValue;
+        return true;
+    },
+});
 
 // Load model URL and switch to second page
 function loadModel() {
@@ -72,10 +84,10 @@ async function startPrediction() {
             prev.probability > current.probability ? prev : current
         );
 
-        let output = document.getElementById("output");
-        output.innerText = `${topPrediction.className}`;
+        document.getElementById("output").innerText = `${topPrediction.className}`;
 
-        sendToMicrobit(topPrediction.className);
+        // Update the proxy state (triggers sendToMicrobit automatically)
+        predictionState.value = topPrediction.className;
     }, 1000);
 }
 
@@ -116,33 +128,51 @@ async function handleDisconnect() {
     }
 }
 
+// Queue for handling BLE write operations
+function queueGattOperation(operation) {
+    writeQueue.push(operation);
+
+    if (writeQueue.length === 1) {
+        processGattQueue();
+    }
+}
+
+async function processGattQueue() {
+    if (writeQueue.length === 0) return;
+
+    try {
+        await writeQueue[0]();
+        writeQueue.shift();
+    } catch (error) {
+        console.error("❌ BLE write failed:", error);
+    } finally {
+        if (writeQueue.length > 0) {
+            processGattQueue();
+        }
+    }
+}
+
 // Send data to micro:bit only if the prediction is different from the last sent value
 async function sendToMicrobit(prediction) {
     if (!microbitCharacteristic) {
         console.warn("⚠️ Micro:bit not connected.");
         return;
     }
-    if (isSending) {
-        console.warn("⚠️ Waiting for previous write to complete...");
-        return;
-    }
 
-    // Only send if the prediction is different from the last sent one
     if (prediction !== lastPrediction) {
-        try {
-            isSending = true; // Lock sending
-            const message = prediction + "\n"; // Ensure a newline is added
-            const data = new TextEncoder().encode(message);
+        queueGattOperation(async () => {
+            try {
+                const message = prediction + "\n";
+                const data = new TextEncoder().encode(message);
 
-            await microbitCharacteristic.writeValueWithResponse(data);
-            console.log("📡 Sent to micro:bit:", message);
+                await microbitCharacteristic.writeValueWithResponse(data);
+                console.log("📡 Sent to micro:bit:", message);
 
-            lastPrediction = prediction; // Update last sent value
-        } catch (error) {
-            console.error("❌ Failed to send:", error);
-        } finally {
-            isSending = false; // Unlock sending
-        }
+                lastPrediction = prediction;
+            } catch (error) {
+                console.error("❌ Failed to send:", error);
+            }
+        });
     }
 }
 
