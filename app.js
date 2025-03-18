@@ -158,23 +158,29 @@ async function sendToMicrobit(prediction) {
         console.warn("⚠️ Micro:bit not connected.");
         return;
     }
+    if (isSending) {
+        console.warn("⚠️ Waiting for previous write to complete...");
+        return;
+    }
 
     if (prediction !== lastPrediction) {
-        queueGattOperation(async () => {
-            try {
-                const message = prediction + "\n";
-                const data = new TextEncoder().encode(message);
+        try {
+            isSending = true;
+            const message = prediction; // Remove newline
+            const data = new TextEncoder().encode(message);
 
-                await microbitCharacteristic.writeValueWithResponse(data);
-                console.log("📡 Sent to micro:bit:", message);
+            await microbitCharacteristic.writeValueWithResponse(data);
+            console.log("📡 Sent to micro:bit:", message);
 
-                lastPrediction = prediction;
-            } catch (error) {
-                console.error("❌ Failed to send:", error);
-            }
-        });
+            lastPrediction = prediction;
+        } catch (error) {
+            console.error("❌ Failed to send:", error);
+        } finally {
+            isSending = false;
+        }
     }
 }
+
 
 // Update button status
 function updateConnectionStatus(isConnected) {
