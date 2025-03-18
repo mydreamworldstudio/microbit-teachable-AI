@@ -1,33 +1,3 @@
-// Load Teachable Machine Model (Moved outside window.onload to be globally accessible)
-async function loadTeachableMachineModel() {
-    const modelURL = document.getElementById("modelUrl")?.value;
-    if (!modelURL) {
-        console.error("❌ No model URL provided.");
-        return;
-    }
-
-    try {
-        console.log("📥 Loading Teachable Machine model...");
-        model = await tmImage.load(modelURL + "/model.json", modelURL + "/metadata.json");
-        
-        webcam = new tmImage.Webcam(200, 200, true);
-        await webcam.setup();
-        await webcam.play();
-        
-        // Fix: Display live webcam feed properly
-        document.getElementById("webcam").appendChild(webcam.canvas);
-
-        document.getElementById("page1").classList.add("hidden");
-        document.getElementById("page2").classList.remove("hidden");
-
-        console.log("✅ Model Loaded Successfully.");
-        startPredictionLoop();
-
-    } catch (error) {
-        console.error("❌ Model loading failed:", error);
-    }
-}
-
 window.onload = function () {
     let uBitDevice;
     let rxCharacteristic;
@@ -43,6 +13,64 @@ window.onload = function () {
     if (connectBtn) connectBtn.addEventListener("click", connectMicrobit);
     if (loadModelBtn) loadModelBtn.addEventListener("click", loadTeachableMachineModel);
 
+    // ✅ Load Teachable Machine Model & Start Camera
+    async function loadTeachableMachineModel() {
+        const modelURL = document.getElementById("modelUrl")?.value;
+        if (!modelURL) {
+            console.error("❌ No model URL provided.");
+            return;
+        }
+
+        try {
+            console.log("📥 Loading Teachable Machine model...");
+            model = await tmImage.load(modelURL + "/model.json", modelURL + "/metadata.json");
+
+            // ✅ Start Webcam
+            webcam = new tmImage.Webcam(200, 200, true);
+            await webcam.setup();
+            await webcam.play();
+
+            // ✅ Append the webcam feed
+            const videoElement = document.getElementById("webcam");
+            videoElement.parentNode.replaceChild(webcam.canvas, videoElement);
+
+            document.getElementById("page1").classList.add("hidden");
+            document.getElementById("page2").classList.remove("hidden");
+
+            console.log("✅ Model Loaded Successfully.");
+            startPredictionLoop();
+
+        } catch (error) {
+            console.error("❌ Model loading failed:", error);
+        }
+    }
+
+    // ✅ Start Prediction Loop
+    async function startPredictionLoop() {
+        while (true) {
+            await predict();
+            await new Promise(resolve => setTimeout(resolve, 500)); // Predict every 500ms
+        }
+    }
+
+    // ✅ Prediction Function
+    async function predict() {
+        if (!model || !webcam) return;
+        webcam.update();
+        const predictions = await model.predict(webcam.canvas);
+
+        let bestPrediction = predictions.reduce((prev, current) => 
+            (prev.probability > current.probability ? prev : current)
+        );
+
+        if (bestPrediction.className !== lastPrediction) {
+            lastPrediction = bestPrediction.className;
+            console.log("🧠 Detected:", lastPrediction);
+            sendUART(lastPrediction);
+        }
+    }
+
+    // ✅ Connect Micro:bit
     async function connectMicrobit() {
         try {
             console.log("🔍 Searching for micro:bit...");
@@ -53,10 +81,7 @@ window.onload = function () {
 
             console.log("🔗 Connecting to GATT Server...");
             await connectToGattServer();
-            console.log("✅ Bluetooth Connection Successful");
-
-            // Fix: Fullscreen request only when user clicks the button
-            connectBtn.addEventListener("click", enterFullScreen);
+            enterFullScreen();
 
         } catch (error) {
             console.error("❌ Connection failed:", error);
@@ -75,7 +100,10 @@ window.onload = function () {
             txCharacteristic = await service.getCharacteristic("6e400002-b5a3-f393-e0a9-e50e24dcca9e");
             rxCharacteristic = await service.getCharacteristic("6e400003-b5a3-f393-e0a9-e50e24dcca9e");
 
+            console.log("✅ Bluetooth Connection Successful");
+
             updateConnectionStatus(true);
+            enterFullScreen();
 
             txCharacteristic.startNotifications();
             txCharacteristic.addEventListener("characteristicvaluechanged", onTxCharacteristicValueChanged);
@@ -105,6 +133,7 @@ window.onload = function () {
                     await connectToGattServer();
                     console.log("✅ Reconnected!");
                     updateConnectionStatus(true);
+                    enterFullScreen();
                 } catch (error) {
                     console.error("❌ Reconnect failed:", error);
                 }
@@ -135,29 +164,6 @@ window.onload = function () {
         }
         const receivedString = String.fromCharCode.apply(null, receivedData);
         console.log("📥 Received from micro:bit:", receivedString);
-    }
-
-    async function startPredictionLoop() {
-        while (true) {
-            await predict();
-            await new Promise(resolve => setTimeout(resolve, 500)); // Predict every 500ms
-        }
-    }
-
-    async function predict() {
-        if (!model || !webcam) return;
-        webcam.update();
-        const predictions = await model.predict(webcam.canvas);
-
-        let bestPrediction = predictions.reduce((prev, current) => 
-            (prev.probability > current.probability ? prev : current)
-        );
-
-        if (bestPrediction.className !== lastPrediction) {
-            lastPrediction = bestPrediction.className;
-            console.log("🧠 Detected:", lastPrediction);
-            sendUART(lastPrediction);
-        }
     }
 
     function enterFullScreen() {
