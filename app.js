@@ -2,7 +2,7 @@ let modelUrl = "";
 let model;
 let microbitDevice;
 let microbitCharacteristic;
-let rxCharacteristic;  // ✅ Added RX characteristic
+let rxCharacteristic;  // ✅ RX for receiving data
 let reconnecting = false;
 let writeQueue = [];
 let lastPrediction = "";
@@ -93,6 +93,20 @@ async function startPrediction() {
     }, 1000);
 }
 
+// ✅ Scan for Available Bluetooth Services (Debugging Tool)
+async function checkAvailableServices() {
+    try {
+        const device = await navigator.bluetooth.requestDevice({
+            acceptAllDevices: true,
+            optionalServices: ['generic_access']
+        });
+
+        console.log("🔍 Available services:", device);
+    } catch (error) {
+        console.error("❌ Bluetooth scanning failed:", error);
+    }
+}
+
 // Connect to micro:bit
 async function connectMicrobit() {
     try {
@@ -109,7 +123,7 @@ async function connectMicrobit() {
 
         // ✅ RX Characteristic (Read)
         rxCharacteristic = await service.getCharacteristic('6e400003-b5a3-f393-e0a9-e50e24dcca9e');
-        rxCharacteristic.startNotifications();
+        await rxCharacteristic.startNotifications();
         rxCharacteristic.addEventListener("characteristicvaluechanged", onDataReceived);
 
         console.log("✅ Connected to micro:bit Bluetooth UART.");
@@ -176,7 +190,7 @@ async function processGattQueue() {
     }
 }
 
-// ✅ Send data to micro:bit with a newline at the end
+// ✅ Send data to micro:bit using "writeValueWithoutResponse()"
 async function sendToMicrobit(prediction) {
     if (!microbitCharacteristic) {
         console.warn("⚠️ Micro:bit not connected.");
@@ -194,7 +208,8 @@ async function sendToMicrobit(prediction) {
                 const message = prediction + "\n";  // ✅ Added newline
                 const data = new TextEncoder().encode(message);
 
-                await microbitCharacteristic.writeValueWithResponse(data);
+                // ✅ Fix: Use `writeValueWithoutResponse()` instead of `writeValueWithResponse()`
+                await microbitCharacteristic.writeValueWithoutResponse(data);
                 console.log("📡 Sent to micro:bit:", message);
 
                 lastPrediction = prediction;
