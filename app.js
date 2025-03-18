@@ -116,7 +116,7 @@ window.onload = function () {
             txCharacteristic.startNotifications();
             txCharacteristic.addEventListener("characteristicvaluechanged", onTxCharacteristicValueChanged);
 
-            uBitDevice.addEventListener('gattserverdisconnected', reconnectMicrobit);
+            uBitDevice.addEventListener('gattserverdisconnected', () => reconnectMicrobit());
 
         } catch (error) {
             console.error("❌ GATT Connection Failed:", error);
@@ -124,11 +124,36 @@ window.onload = function () {
         }
     }
 
-    // ✅ Reconnect Micro:bit on Disconnection
-    function reconnectMicrobit() {
-        console.warn("⚠️ Micro:bit disconnected. Attempting to reconnect...");
+    // ✅ Improved Auto-Reconnect Function
+    async function reconnectMicrobit() {
+        console.warn("⚠️ Micro:bit Disconnected! Attempting to reconnect...");
         updateConnectionStatus(false);
-        setTimeout(() => connectMicrobit(), 3000); // Auto-reconnect after 3 seconds
+
+        let reconnectAttempts = 0;
+        const maxAttempts = 5; // Set a limit to avoid infinite retries
+
+        while (reconnectAttempts < maxAttempts) {
+            try {
+                console.log(`🔄 Reconnecting... Attempt ${reconnectAttempts + 1}/${maxAttempts}`);
+
+                if (!uBitDevice || !uBitDevice.gatt.connected) {
+                    await connectMicrobit();
+                }
+
+                if (uBitDevice.gatt.connected) {
+                    console.log("✅ Reconnected successfully!");
+                    return;
+                }
+
+            } catch (error) {
+                console.error("❌ Reconnect attempt failed:", error);
+            }
+
+            reconnectAttempts++;
+            await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds before retrying
+        }
+
+        console.error("🚨 Reconnection failed after multiple attempts.");
     }
 
     function updateConnectionStatus(connected) {
