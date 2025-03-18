@@ -1,11 +1,15 @@
-document.addEventListener("DOMContentLoaded", function () {
+window.onload = function () {
     let uBitDevice;
     let rxCharacteristic;
     let txCharacteristic;
     let model, webcam;
-    let lastPrediction = ""; // Stores last prediction to avoid repeating messages
+    let lastPrediction = ""; // Stores last prediction to avoid repeated messages
 
-    document.getElementById("connectBtn").addEventListener("click", connectMicrobit);
+    const connectBtn = document.getElementById("connectBtn");
+    const loadModelBtn = document.getElementById("loadModelBtn");
+
+    if (connectBtn) connectBtn.addEventListener("click", connectMicrobit);
+    if (loadModelBtn) loadModelBtn.addEventListener("click", loadTeachableMachineModel);
 
     async function connectMicrobit() {
         try {
@@ -17,7 +21,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
             console.log("🔗 Connecting to GATT Server...");
             await connectToGattServer();
-            enterFullScreen(); // Force full-screen after connection
+            enterFullScreen();
 
         } catch (error) {
             console.error("❌ Connection failed:", error);
@@ -39,7 +43,7 @@ document.addEventListener("DOMContentLoaded", function () {
             console.log("✅ Bluetooth Connection Successful");
 
             updateConnectionStatus(true);
-            enterFullScreen(); // Ensure full-screen after reconnect
+            enterFullScreen();
 
             txCharacteristic.startNotifications();
             txCharacteristic.addEventListener("characteristicvaluechanged", onTxCharacteristicValueChanged);
@@ -53,14 +57,9 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function updateConnectionStatus(connected) {
-        const connectBtn = document.getElementById("connectBtn");
-        if (connected) {
-            connectBtn.innerText = "Connected!";
-            connectBtn.style.background = "#0077ff";
-        } else {
-            connectBtn.innerText = "Reconnect";
-            connectBtn.style.background = "#ff3333";
-        }
+        if (!connectBtn) return;
+        connectBtn.innerText = connected ? "Connected!" : "Reconnect";
+        connectBtn.style.background = connected ? "#0077ff" : "#ff3333";
     }
 
     async function reconnectMicrobit() {
@@ -108,7 +107,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     async function loadTeachableMachineModel() {
-        const modelURL = document.getElementById("modelInput").value;
+        const modelURL = document.getElementById("modelInput")?.value;
         if (!modelURL) {
             console.error("❌ No model URL provided.");
             return;
@@ -124,7 +123,7 @@ document.addEventListener("DOMContentLoaded", function () {
             document.getElementById("webcamContainer").appendChild(webcam.canvas);
 
             console.log("✅ Model Loaded Successfully.");
-            setInterval(startPrediction, 1000); // Start predicting every second
+            setInterval(startPrediction, 1000);
 
         } catch (error) {
             console.error("❌ Model loading failed:", error);
@@ -143,7 +142,7 @@ document.addEventListener("DOMContentLoaded", function () {
         if (bestPrediction.className !== lastPrediction) {
             lastPrediction = bestPrediction.className;
             console.log("🧠 Detected:", lastPrediction);
-            sendUART(lastPrediction); // Sends only new predictions
+            sendUART(lastPrediction);
         }
     }
 
@@ -151,14 +150,12 @@ document.addEventListener("DOMContentLoaded", function () {
         let elem = document.documentElement;
         if (elem.requestFullscreen) {
             elem.requestFullscreen();
-        } else if (elem.mozRequestFullScreen) { // Firefox
+        } else if (elem.mozRequestFullScreen) { 
             elem.mozRequestFullScreen();
-        } else if (elem.webkitRequestFullscreen) { // Chrome, Safari, Opera
+        } else if (elem.webkitRequestFullscreen) { 
             elem.webkitRequestFullscreen();
-        } else if (elem.msRequestFullscreen) { // IE/Edge
+        } else if (elem.msRequestFullscreen) { 
             elem.msRequestFullscreen();
         }
     }
-
-    document.getElementById("loadModelBtn").addEventListener("click", loadTeachableMachineModel);
-});
+};
