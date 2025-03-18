@@ -1,13 +1,42 @@
+// Load Teachable Machine Model (Moved outside window.onload to be globally accessible)
+async function loadTeachableMachineModel() {
+    const modelURL = document.getElementById("modelUrl")?.value;
+    if (!modelURL) {
+        console.error("❌ No model URL provided.");
+        return;
+    }
+
+    try {
+        console.log("📥 Loading Teachable Machine model...");
+        model = await tmImage.load(modelURL + "/model.json", modelURL + "/metadata.json");
+        webcam = new tmImage.Webcam(200, 200, true);
+        await webcam.setup();
+        await webcam.play();
+        document.getElementById("webcam").srcObject = webcam.canvas.captureStream();
+
+        document.getElementById("page1").classList.add("hidden");
+        document.getElementById("page2").classList.remove("hidden");
+
+        console.log("✅ Model Loaded Successfully.");
+        startPredictionLoop();
+
+    } catch (error) {
+        console.error("❌ Model loading failed:", error);
+    }
+}
+
 window.onload = function () {
     let uBitDevice;
     let rxCharacteristic;
     let txCharacteristic;
     let model, webcam;
-    let lastPrediction = ""; // Stores last prediction to avoid repeated messages
+    let lastPrediction = "";
 
+    // Button References
     const connectBtn = document.getElementById("connectButton");
-    const loadModelBtn = document.getElementById("loadModel");
+    const loadModelBtn = document.getElementById("loadModelButton");
 
+    // Event Listeners
     if (connectBtn) connectBtn.addEventListener("click", connectMicrobit);
     if (loadModelBtn) loadModelBtn.addEventListener("click", loadTeachableMachineModel);
 
@@ -104,32 +133,6 @@ window.onload = function () {
         }
         const receivedString = String.fromCharCode.apply(null, receivedData);
         console.log("📥 Received from micro:bit:", receivedString);
-    }
-
-    async function loadTeachableMachineModel() {
-        const modelURL = document.getElementById("modelUrl")?.value;
-        if (!modelURL) {
-            console.error("❌ No model URL provided.");
-            return;
-        }
-
-        try {
-            console.log("📥 Loading Teachable Machine model...");
-            model = await tmImage.load(modelURL + "model.json", modelURL + "metadata.json");
-            webcam = new tmImage.Webcam(200, 200, true);
-            await webcam.setup();
-            await webcam.play();
-            document.getElementById("webcam").srcObject = webcam.canvas.captureStream();
-
-            document.getElementById("page1").classList.add("hidden");
-            document.getElementById("page2").classList.remove("hidden");
-
-            console.log("✅ Model Loaded Successfully.");
-            startPredictionLoop();
-
-        } catch (error) {
-            console.error("❌ Model loading failed:", error);
-        }
     }
 
     async function startPredictionLoop() {
