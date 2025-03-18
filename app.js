@@ -4,6 +4,7 @@ window.onload = function () {
     let txCharacteristic;
     let model, webcam;
     let lastPrediction = "";
+    let isPredicting = false;
 
     // Button References
     const connectBtn = document.getElementById("connectButton");
@@ -26,13 +27,17 @@ window.onload = function () {
             model = await tmImage.load(modelURL + "/model.json", modelURL + "/metadata.json");
 
             // ✅ Start Webcam
-            webcam = new tmImage.Webcam(200, 200, true);
+            webcam = new tmImage.Webcam(250, 250, true);
             await webcam.setup();
             await webcam.play();
 
-            // ✅ Append the webcam feed
-            const videoElement = document.getElementById("webcam");
-            videoElement.parentNode.replaceChild(webcam.canvas, videoElement);
+            // ✅ Replace the webcam display
+            const webcamContainer = document.createElement("div");
+            webcamContainer.id = "webcam-container";
+            webcamContainer.appendChild(webcam.canvas);
+
+            const oldWebcam = document.getElementById("webcam");
+            oldWebcam.parentNode.replaceChild(webcamContainer, oldWebcam);
 
             document.getElementById("page1").classList.add("hidden");
             document.getElementById("page2").classList.remove("hidden");
@@ -47,10 +52,13 @@ window.onload = function () {
 
     // ✅ Start Prediction Loop
     async function startPredictionLoop() {
-        while (true) {
-            await predict();
-            await new Promise(resolve => setTimeout(resolve, 500)); // Predict every 500ms
+        if (isPredicting) return;
+        isPredicting = true;
+        function loop() {
+            predict();
+            requestAnimationFrame(loop); // Runs continuously for smoother updates
         }
+        loop();
     }
 
     // ✅ Prediction Function
@@ -66,6 +74,7 @@ window.onload = function () {
         if (bestPrediction.className !== lastPrediction) {
             lastPrediction = bestPrediction.className;
             console.log("🧠 Detected:", lastPrediction);
+            document.getElementById("output").innerText = `Detected: ${lastPrediction}`;
             sendUART(lastPrediction);
         }
     }
@@ -122,25 +131,6 @@ window.onload = function () {
         connectBtn.style.background = connected ? "#0077ff" : "#ff3333";
     }
 
-    async function reconnectMicrobit() {
-        console.log("🔄 Micro:bit disconnected. Attempting to reconnect...");
-        updateConnectionStatus(false);
-
-        setTimeout(async () => {
-            if (uBitDevice) {
-                try {
-                    console.log("🔄 Reconnecting...");
-                    await connectToGattServer();
-                    console.log("✅ Reconnected!");
-                    updateConnectionStatus(true);
-                    enterFullScreen();
-                } catch (error) {
-                    console.error("❌ Reconnect failed:", error);
-                }
-            }
-        }, 3000);
-    }
-
     async function sendUART(command) {
         if (!rxCharacteristic) return;
         let encoder = new TextEncoder();
@@ -168,14 +158,6 @@ window.onload = function () {
 
     function enterFullScreen() {
         let elem = document.documentElement;
-        if (elem.requestFullscreen) {
-            elem.requestFullscreen();
-        } else if (elem.mozRequestFullScreen) { 
-            elem.mozRequestFullScreen();
-        } else if (elem.webkitRequestFullscreen) { 
-            elem.webkitRequestFullscreen();
-        } else if (elem.msRequestFullscreen) { 
-            elem.msRequestFullscreen();
-        }
+        if (elem.requestFullscreen) elem.requestFullscreen();
     }
 };
