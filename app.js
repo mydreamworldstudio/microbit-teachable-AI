@@ -2,11 +2,12 @@ let modelUrl = "";
 let model;
 let microbitDevice;
 let microbitCharacteristic;
-let rxCharacteristic;  // ✅ RX for receiving data
+let rxCharacteristic;
 let reconnecting = false;
 let writeQueue = [];
 let lastPrediction = "";
-let isSending = false; // Prevent multiple writes at the same time
+let isSending = false;
+let videoStream = null; // To stop the camera later
 
 // Proxy object to detect prediction changes
 let predictionState = new Proxy({ value: "" }, {
@@ -64,12 +65,21 @@ async function setupCamera() {
     const video = document.getElementById("webcam");
 
     try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        video.srcObject = stream;
+        videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = videoStream;
         console.log("📷 Camera feed started.");
     } catch (error) {
         console.error("❌ Failed to access camera:", error);
         alert("Camera access denied. Please enable camera permissions.");
+    }
+}
+
+// Stop camera when exiting
+function stopCamera() {
+    if (videoStream) {
+        videoStream.getTracks().forEach(track => track.stop());
+        videoStream = null;
+        console.log("📷 Camera feed stopped.");
     }
 }
 
@@ -90,7 +100,7 @@ async function startPrediction() {
 
         // Update the proxy state (triggers sendToMicrobit automatically)
         predictionState.value = topPrediction.className;
-    }, 1000);
+    }, 1000); // Predictions every 1 second
 }
 
 // ✅ Scan for Available Bluetooth Services (Debugging Tool)
@@ -205,10 +215,10 @@ async function sendToMicrobit(prediction) {
         queueGattOperation(async () => {
             try {
                 isSending = true;
-                const message = prediction + "\n";  // ✅ Added newline
+                const message = prediction + "\n";
                 const data = new TextEncoder().encode(message);
 
-                // ✅ Fix: Use `writeValueWithoutResponse()` instead of `writeValueWithResponse()`
+                // ✅ Use `writeValueWithoutResponse()`
                 await microbitCharacteristic.writeValueWithoutResponse(data);
                 console.log("📡 Sent to micro:bit:", message);
 
