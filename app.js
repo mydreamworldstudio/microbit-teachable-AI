@@ -5,6 +5,7 @@ let microbitCharacteristic;
 let reconnecting = false;
 let writeQueue = [];
 let lastPrediction = "";
+let isSending = false; // Prevent multiple writes at the same time
 
 // Proxy object to detect prediction changes
 let predictionState = new Proxy({ value: "" }, {
@@ -164,23 +165,24 @@ async function sendToMicrobit(prediction) {
     }
 
     if (prediction !== lastPrediction) {
-        try {
-            isSending = true;
-            const message = prediction; // Remove newline
-            const data = new TextEncoder().encode(message);
+        queueGattOperation(async () => {
+            try {
+                isSending = true;
+                const message = prediction; // No newline
+                const data = new TextEncoder().encode(message);
 
-            await microbitCharacteristic.writeValueWithResponse(data);
-            console.log("📡 Sent to micro:bit:", message);
+                await microbitCharacteristic.writeValueWithResponse(data);
+                console.log("📡 Sent to micro:bit:", message);
 
-            lastPrediction = prediction;
-        } catch (error) {
-            console.error("❌ Failed to send:", error);
-        } finally {
-            isSending = false;
-        }
+                lastPrediction = prediction;
+            } catch (error) {
+                console.error("❌ Failed to send:", error);
+            } finally {
+                isSending = false;
+            }
+        });
     }
 }
-
 
 // Update button status
 function updateConnectionStatus(isConnected) {
