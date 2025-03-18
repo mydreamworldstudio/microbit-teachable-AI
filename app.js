@@ -125,36 +125,25 @@ window.onload = function () {
     }
 
     // ✅ Improved Auto-Reconnect Function
-    async function reconnectMicrobit() {
-        console.warn("⚠️ Micro:bit Disconnected! Attempting to reconnect...");
-        updateConnectionStatus(false);
+   async function reconnectMicrobit() {
+    console.warn("⚠️ Micro:bit disconnected. Attempting to reconnect...");
+    updateConnectionStatus(false);
 
-        let reconnectAttempts = 0;
-        const maxAttempts = 5; // Set a limit to avoid infinite retries
-
-        while (reconnectAttempts < maxAttempts) {
+    setTimeout(async () => {
+        if (uBitDevice && uBitDevice.gatt.connected === false) {
             try {
-                console.log(`🔄 Reconnecting... Attempt ${reconnectAttempts + 1}/${maxAttempts}`);
-
-                if (!uBitDevice || !uBitDevice.gatt.connected) {
-                    await connectMicrobit();
-                }
-
-                if (uBitDevice.gatt.connected) {
-                    console.log("✅ Reconnected successfully!");
-                    return;
-                }
-
+                console.log("🔄 Reconnecting...");
+                await connectToGattServer();
+                console.log("✅ Reconnected!");
+                updateConnectionStatus(true);
+                enterFullScreen(); // Ensure full-screen mode is maintained
             } catch (error) {
-                console.error("❌ Reconnect attempt failed:", error);
+                console.error("❌ Reconnect failed:", error);
             }
-
-            reconnectAttempts++;
-            await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5 seconds before retrying
         }
+    }, 3000); // Try reconnecting after 3 seconds
+}
 
-        console.error("🚨 Reconnection failed after multiple attempts.");
-    }
 
     function updateConnectionStatus(connected) {
         if (!connectBtn) return;
