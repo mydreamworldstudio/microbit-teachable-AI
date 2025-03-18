@@ -4,6 +4,7 @@ let microbitDevice;
 let microbitCharacteristic;
 let reconnecting = false;
 let isSending = false; // Prevents multiple writes at once
+let lastPrediction = ""; // Store last sent prediction
 
 // Load model URL and switch to second page
 function loadModel() {
@@ -115,7 +116,7 @@ async function handleDisconnect() {
     }
 }
 
-// Send data to micro:bit
+// Send data to micro:bit only if the prediction is different from the last sent value
 async function sendToMicrobit(prediction) {
     if (!microbitCharacteristic) {
         console.warn("⚠️ Micro:bit not connected.");
@@ -126,21 +127,26 @@ async function sendToMicrobit(prediction) {
         return;
     }
 
-    try {
-        isSending = true; // Lock sending
-        const message = prediction + "\n"; // Ensure a newline is added
-        const data = new TextEncoder().encode(message);
+    // Only send if the prediction is different from the last sent one
+    if (prediction !== lastPrediction) {
+        try {
+            isSending = true; // Lock sending
+            const message = prediction + "\n"; // Ensure a newline is added
+            const data = new TextEncoder().encode(message);
 
-        await microbitCharacteristic.writeValueWithoutResponse(data);
-        console.log("📡 Sent to micro:bit:", message);
-    } catch (error) {
-        console.error("❌ Failed to send:", error);
-    } finally {
-        isSending = false; // Unlock sending
+            await microbitCharacteristic.writeValueWithResponse(data);
+            console.log("📡 Sent to micro:bit:", message);
+
+            lastPrediction = prediction; // Update last sent value
+        } catch (error) {
+            console.error("❌ Failed to send:", error);
+        } finally {
+            isSending = false; // Unlock sending
+        }
     }
 }
 
-// Update button status (Fix for undefined function issue)
+// Update button status
 function updateConnectionStatus(isConnected) {
     const connectButton = document.getElementById("connectButton");
     if (connectButton) {
