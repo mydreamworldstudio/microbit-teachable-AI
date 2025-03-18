@@ -73,8 +73,8 @@ window.onload = function () {
 
         if (bestPrediction.className !== lastPrediction) {
             lastPrediction = bestPrediction.className;
-            console.log("🧠 Detected:", lastPrediction);
-            document.getElementById("output").innerText = `Detected: ${lastPrediction}`;
+            console.log("📡 Result:", lastPrediction);
+            document.getElementById("output").innerText = lastPrediction; // ✅ No extra text, only result
             sendUART(lastPrediction);
         }
     }
@@ -112,7 +112,6 @@ window.onload = function () {
             console.log("✅ Bluetooth Connection Successful");
 
             updateConnectionStatus(true);
-            enterFullScreen();
 
             txCharacteristic.startNotifications();
             txCharacteristic.addEventListener("characteristicvaluechanged", onTxCharacteristicValueChanged);
@@ -123,6 +122,13 @@ window.onload = function () {
             console.error("❌ GATT Connection Failed:", error);
             updateConnectionStatus(false);
         }
+    }
+
+    // ✅ Reconnect Micro:bit on Disconnection
+    function reconnectMicrobit() {
+        console.warn("⚠️ Micro:bit disconnected. Attempting to reconnect...");
+        updateConnectionStatus(false);
+        setTimeout(() => connectMicrobit(), 3000); // Auto-reconnect after 3 seconds
     }
 
     function updateConnectionStatus(connected) {
@@ -156,8 +162,11 @@ window.onload = function () {
         console.log("📥 Received from micro:bit:", receivedString);
     }
 
+    // ✅ Fullscreen only when user clicks (fixes error)
     function enterFullScreen() {
         let elem = document.documentElement;
-        if (elem.requestFullscreen) elem.requestFullscreen();
+        if (elem.requestFullscreen) {
+            document.body.addEventListener('click', () => elem.requestFullscreen(), { once: true });
+        }
     }
 };
