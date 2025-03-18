@@ -1,220 +1,164 @@
-let modelUrl = "";
-let model;
-let microbitDevice;
-let microbitCharacteristic;
-let rxCharacteristic;
-let reconnecting = false;
-let writeQueue = [];
-let lastPrediction = "";
-let isSending = false;
-let videoStream = null;
+document.addEventListener("DOMContentLoaded", function () {
+    let uBitDevice;
+    let rxCharacteristic;
+    let txCharacteristic;
+    let model, webcam;
+    let lastPrediction = ""; // Stores last prediction to avoid repeating messages
 
-// Proxy object to detect prediction changes
-let predictionState = new Proxy({ value: "" }, {
-    set: function (obj, prop, newValue) {
-        if (prop === "value" && obj[prop] !== newValue) {
-            console.log("🧠 Detected:", newValue);
-            sendToMicrobit(newValue);
+    document.getElementById("connectBtn").addEventListener("click", connectMicrobit);
+
+    async function connectMicrobit() {
+        try {
+            console.log("🔍 Searching for micro:bit...");
+            uBitDevice = await navigator.bluetooth.requestDevice({
+                filters: [{ namePrefix: "BBC micro:bit" }],
+                optionalServices: ["6e400001-b5a3-f393-e0a9-e50e24dcca9e"]
+            });
+
+            console.log("🔗 Connecting to GATT Server...");
+            await connectToGattServer();
+            enterFullScreen(); // Force full-screen after connection
+
+        } catch (error) {
+            console.error("❌ Connection failed:", error);
         }
-        obj[prop] = newValue;
-        return true;
-    },
-});
-
-// Load model and switch to second page
-function loadModel() {
-    modelUrl = document.getElementById("modelUrl").value.trim();
-    if (!modelUrl.startsWith("https://teachablemachine.withgoogle.com/models/")) {
-        alert("Please enter a valid Teachable Machine model URL!");
-        return;
-    }
-    document.getElementById("page1").classList.add("hidden");
-    document.getElementById("page2").classList.remove("hidden");
-    loadTeachableMachineModel();
-    setupCamera();
-}
-
-// Load Teachable Machine model
-async function loadTeachableMachineModel() {
-    try {
-        const modelURL = modelUrl.replace(/\/+$/, '') + "/model.json";
-        const metadataURL = modelUrl.replace(/\/+$/, '') + "/metadata.json";
-
-        model = await tmImage.load(modelURL, metadataURL);
-        console.log("✅ Model loaded!");
-        startPrediction();
-    } catch (error) {
-        console.error("❌ Failed to load model:", error);
-        alert("Failed to load model. Please check the URL and try again.");
-    }
-}
-
-// Setup live camera feed
-async function setupCamera() {
-    const video = document.getElementById("webcam");
-    try {
-        videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
-        video.srcObject = videoStream;
-        console.log("📷 Camera feed started.");
-    } catch (error) {
-        console.error("❌ Failed to access camera:", error);
-        alert("Camera access denied. Please enable camera permissions.");
-    }
-}
-
-// Stop camera when exiting
-function stopCamera() {
-    if (videoStream) {
-        videoStream.getTracks().forEach(track => track.stop());
-        videoStream = null;
-        console.log("📷 Camera feed stopped.");
-    }
-}
-
-// Start predictions automatically
-async function startPrediction() {
-    const video = document.getElementById("webcam");
-    setInterval(async () => {
-        if (!model) return;
-        const predictions = await model.predict(video);
-        const topPrediction = predictions.reduce((prev, current) =>
-            prev.probability > current.probability ? prev : current
-        );
-        document.getElementById("output").innerText = `${topPrediction.className}`;
-        predictionState.value = topPrediction.className;
-    }, 1000);
-}
-
-// ✅ Connect to micro:bit (Using stable Bluetooth Controller Code)
-async function connectMicrobit() {
-    try {
-        console.log("🔍 Searching for micro:bit...");
-
-        // Request micro:bit connection
-        microbitDevice = await navigator.bluetooth.requestDevice({
-            filters: [{ namePrefix: "BBC micro:bit" }],
-            optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e']
-        });
-
-        console.log("📡 Connecting to GATT server...");
-        const server = await microbitDevice.gatt.connect();
-        console.log("✅ GATT server connected!");
-
-        // List all available services for debugging
-        const services = await server.getPrimaryServices();
-        console.log("📜 Available services:", services.map(s => s.uuid));
-
-        // Get UART Service
-        const service = await server.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e');
-
-        // Get TX & RX characteristics
-        microbitCharacteristic = await service.getCharacteristic('6e400002-b5a3-f393-e0a9-e50e24dcca9e');
-        rxCharacteristic = await service.getCharacteristic('6e400003-b5a3-f393-e0a9-e50e24dcca9e');
-
-        // Start receiving notifications
-        await rxCharacteristic.startNotifications();
-        rxCharacteristic.addEventListener("characteristicvaluechanged", onDataReceived);
-
-        console.log("✅ Micro:bit UART Service connected.");
-        updateConnectionStatus(true);
-
-        // Handle disconnection
-        microbitDevice.addEventListener('gattserverdisconnected', handleDisconnect);
-
-    } catch (error) {
-        console.error("❌ Micro:bit connection failed", error);
-        alert("⚠️ Failed to connect. Try again and ensure Bluetooth is on.");
-    }
-}
-
-
-// ✅ Handle received data from micro:bit (Debugging improved)
-function onDataReceived(event) {
-    let receivedData = [];
-    for (var i = 0; i < event.target.value.byteLength; i++) {
-        receivedData[i] = event.target.value.getUint8(i);
     }
 
-    const receivedString = String.fromCharCode.apply(null, receivedData);
-    console.log("📥 Received raw data:", receivedData);
-    console.log("📥 Received string:", receivedString);
+    async function connectToGattServer() {
+        try {
+            if (!uBitDevice) return;
+            const server = await uBitDevice.gatt.connect();
 
-    if (receivedString.trim() === "S") {
-        console.log("🎭 Micro:bit detected shake event!");
+            console.log("🔧 Getting Service...");
+            const service = await server.getPrimaryService("6e400001-b5a3-f393-e0a9-e50e24dcca9e");
+
+            console.log("🔑 Getting Characteristics...");
+            txCharacteristic = await service.getCharacteristic("6e400002-b5a3-f393-e0a9-e50e24dcca9e");
+            rxCharacteristic = await service.getCharacteristic("6e400003-b5a3-f393-e0a9-e50e24dcca9e");
+
+            console.log("✅ Bluetooth Connection Successful");
+
+            updateConnectionStatus(true);
+            enterFullScreen(); // Ensure full-screen after reconnect
+
+            txCharacteristic.startNotifications();
+            txCharacteristic.addEventListener("characteristicvaluechanged", onTxCharacteristicValueChanged);
+
+            uBitDevice.addEventListener('gattserverdisconnected', reconnectMicrobit);
+
+        } catch (error) {
+            console.error("❌ GATT Connection Failed:", error);
+            updateConnectionStatus(false);
+        }
     }
-}
 
-// Handle micro:bit disconnection and attempt to reconnect
-async function handleDisconnect() {
-    console.warn("⚠️ Micro:bit disconnected.");
-    updateConnectionStatus(false);
-    if (!reconnecting) {
-        reconnecting = true;
-        setTimeout(() => {
-            console.log("🔄 Attempting to reconnect...");
-            connectMicrobit();
-            reconnecting = false;
+    function updateConnectionStatus(connected) {
+        const connectBtn = document.getElementById("connectBtn");
+        if (connected) {
+            connectBtn.innerText = "Connected!";
+            connectBtn.style.background = "#0077ff";
+        } else {
+            connectBtn.innerText = "Reconnect";
+            connectBtn.style.background = "#ff3333";
+        }
+    }
+
+    async function reconnectMicrobit() {
+        console.log("🔄 Micro:bit disconnected. Attempting to reconnect...");
+        updateConnectionStatus(false);
+
+        setTimeout(async () => {
+            if (uBitDevice) {
+                try {
+                    console.log("🔄 Reconnecting...");
+                    await connectToGattServer();
+                    console.log("✅ Reconnected!");
+                    updateConnectionStatus(true);
+                    enterFullScreen();
+                } catch (error) {
+                    console.error("❌ Reconnect failed:", error);
+                }
+            }
         }, 3000);
     }
-}
 
-// ✅ Send data to micro:bit (Improved)
-async function sendToMicrobit(prediction) {
-    if (!microbitCharacteristic) {
-        console.warn("⚠️ Micro:bit not connected.");
-        return;
-    }
-    if (isSending) {
-        console.warn("⚠️ Waiting for previous write to complete...");
-        return;
+    async function sendUART(command) {
+        if (!rxCharacteristic) return;
+        let encoder = new TextEncoder();
+        queueGattOperation(() =>
+            rxCharacteristic.writeValue(encoder.encode(command + "\n"))
+                .then(() => console.log("📡 Sent to micro:bit:", command))
+                .catch(error => console.error("❌ Error sending data:", error))
+        );
     }
 
-    if (prediction !== lastPrediction) {
-        queueGattOperation(async () => {
-            try {
-                isSending = true;
-                const message = prediction + "\n";
-                const data = new TextEncoder().encode(message);
-
-                await microbitCharacteristic.writeValueWithResponse(data);
-                console.log("📡 Sent to micro:bit:", message);
-
-                lastPrediction = prediction;
-            } catch (error) {
-                console.error("❌ Failed to send:", error);
-            } finally {
-                isSending = false;
-            }
-        });
+    let queue = Promise.resolve();
+    function queueGattOperation(operation) {
+        queue = queue.then(operation, operation);
+        return queue;
     }
-}
 
-// ✅ Queue system for BLE operations (Avoids Overloading)
-function queueGattOperation(operation) {
-    writeQueue.push(operation);
-    if (writeQueue.length === 1) {
-        processGattQueue();
+    function onTxCharacteristicValueChanged(event) {
+        let receivedData = [];
+        for (let i = 0; i < event.target.value.byteLength; i++) {
+            receivedData[i] = event.target.value.getUint8(i);
+        }
+        const receivedString = String.fromCharCode.apply(null, receivedData);
+        console.log("📥 Received from micro:bit:", receivedString);
     }
-}
 
-async function processGattQueue() {
-    if (writeQueue.length === 0) return;
-    try {
-        await writeQueue[0]();
-        writeQueue.shift();
-    } catch (error) {
-        console.error("❌ BLE write failed:", error);
-    } finally {
-        if (writeQueue.length > 0) {
-            processGattQueue();
+    async function loadTeachableMachineModel() {
+        const modelURL = document.getElementById("modelInput").value;
+        if (!modelURL) {
+            console.error("❌ No model URL provided.");
+            return;
+        }
+
+        try {
+            console.log("📥 Loading Teachable Machine model...");
+            model = await tmImage.load(modelURL + "model.json", modelURL + "metadata.json");
+            const flip = true;
+            webcam = new tmImage.Webcam(200, 200, flip);
+            await webcam.setup();
+            await webcam.play();
+            document.getElementById("webcamContainer").appendChild(webcam.canvas);
+
+            console.log("✅ Model Loaded Successfully.");
+            setInterval(startPrediction, 1000); // Start predicting every second
+
+        } catch (error) {
+            console.error("❌ Model loading failed:", error);
         }
     }
-}
 
-// ✅ Update UI Connection Status
-function updateConnectionStatus(isConnected) {
-    const connectButton = document.getElementById("connectButton");
-    if (connectButton) {
-        connectButton.innerText = isConnected ? "Connected ✅" : "Connect";
+    async function startPrediction() {
+        if (!model || !webcam) return;
+        webcam.update();
+        const predictions = await model.predict(webcam.canvas);
+
+        let bestPrediction = predictions.reduce((prev, current) => 
+            (prev.probability > current.probability ? prev : current)
+        );
+
+        if (bestPrediction.className !== lastPrediction) {
+            lastPrediction = bestPrediction.className;
+            console.log("🧠 Detected:", lastPrediction);
+            sendUART(lastPrediction); // Sends only new predictions
+        }
     }
-}
+
+    function enterFullScreen() {
+        let elem = document.documentElement;
+        if (elem.requestFullscreen) {
+            elem.requestFullscreen();
+        } else if (elem.mozRequestFullScreen) { // Firefox
+            elem.mozRequestFullScreen();
+        } else if (elem.webkitRequestFullscreen) { // Chrome, Safari, Opera
+            elem.webkitRequestFullscreen();
+        } else if (elem.msRequestFullscreen) { // IE/Edge
+            elem.msRequestFullscreen();
+        }
+    }
+
+    document.getElementById("loadModelBtn").addEventListener("click", loadTeachableMachineModel);
+});
