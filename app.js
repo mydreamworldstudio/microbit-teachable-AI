@@ -89,30 +89,44 @@ async function startPrediction() {
 async function connectMicrobit() {
     try {
         console.log("🔍 Searching for micro:bit...");
+
+        // Request micro:bit connection
         microbitDevice = await navigator.bluetooth.requestDevice({
             filters: [{ namePrefix: "BBC micro:bit" }],
             optionalServices: ['6e400001-b5a3-f393-e0a9-e50e24dcca9e']
         });
 
+        console.log("📡 Connecting to GATT server...");
         const server = await microbitDevice.gatt.connect();
-        console.log("✅ Connected to micro:bit Bluetooth GATT Server.");
+        console.log("✅ GATT server connected!");
 
+        // List all available services for debugging
+        const services = await server.getPrimaryServices();
+        console.log("📜 Available services:", services.map(s => s.uuid));
+
+        // Get UART Service
         const service = await server.getPrimaryService('6e400001-b5a3-f393-e0a9-e50e24dcca9e');
+
+        // Get TX & RX characteristics
         microbitCharacteristic = await service.getCharacteristic('6e400002-b5a3-f393-e0a9-e50e24dcca9e');
         rxCharacteristic = await service.getCharacteristic('6e400003-b5a3-f393-e0a9-e50e24dcca9e');
 
+        // Start receiving notifications
         await rxCharacteristic.startNotifications();
         rxCharacteristic.addEventListener("characteristicvaluechanged", onDataReceived);
 
         console.log("✅ Micro:bit UART Service connected.");
         updateConnectionStatus(true);
 
+        // Handle disconnection
         microbitDevice.addEventListener('gattserverdisconnected', handleDisconnect);
+
     } catch (error) {
         console.error("❌ Micro:bit connection failed", error);
-        alert("Failed to connect. Try again.");
+        alert("⚠️ Failed to connect. Try again and ensure Bluetooth is on.");
     }
 }
+
 
 // ✅ Handle received data from micro:bit (Debugging improved)
 function onDataReceived(event) {
