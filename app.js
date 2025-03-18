@@ -3,6 +3,7 @@ let model;
 let microbitDevice;
 let microbitCharacteristic;
 let reconnecting = false;
+let isSending = false; // Prevents multiple writes at once
 
 // Load model URL and switch to second page
 function loadModel() {
@@ -93,17 +94,25 @@ async function connectMicrobit() {
         updateConnectionStatus(true);
 
         microbitDevice.addEventListener('gattserverdisconnected', handleDisconnect);
-
     } catch (error) {
         console.error("❌ Micro:bit connection failed", error);
         alert("Failed to connect. Try again.");
     }
 }
 
-// Handle disconnection
+// Handle micro:bit disconnection and attempt to reconnect
 async function handleDisconnect() {
     console.warn("⚠️ Micro:bit disconnected.");
     updateConnectionStatus(false);
+
+    if (!reconnecting) {
+        reconnecting = true;
+        setTimeout(() => {
+            console.log("🔄 Attempting to reconnect...");
+            connectMicrobit();
+            reconnecting = false;
+        }, 3000); // Try reconnecting after 3 seconds
+    }
 }
 
 // Send data to micro:bit
@@ -112,14 +121,29 @@ async function sendToMicrobit(prediction) {
         console.warn("⚠️ Micro:bit not connected.");
         return;
     }
+    if (isSending) {
+        console.warn("⚠️ Waiting for previous write to complete...");
+        return;
+    }
 
     try {
+        isSending = true; // Lock sending
         const message = prediction + "\n"; // Ensure a newline is added
         const data = new TextEncoder().encode(message);
 
-        await microbitCharacteristic.writeValueWithResponse(data); // Ensure micro:bit receives it
+        await microbitCharacteristic.writeValueWithoutResponse(data);
         console.log("📡 Sent to micro:bit:", message);
     } catch (error) {
         console.error("❌ Failed to send:", error);
+    } finally {
+        isSending = false; // Unlock sending
+    }
+}
+
+// Update button status (Fix for undefined function issue)
+function updateConnectionStatus(isConnected) {
+    const connectButton = document.getElementById("connectButton");
+    if (connectButton) {
+        connectButton.innerText = isConnected ? "Connected ✅" : "Connect";
     }
 }
