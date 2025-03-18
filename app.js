@@ -5,8 +5,8 @@ window.onload = function () {
     let model, webcam;
     let lastPrediction = ""; // Stores last prediction to avoid repeated messages
 
-    const connectBtn = document.getElementById("connectBtn");
-    const loadModelBtn = document.getElementById("loadModelBtn");
+    const connectBtn = document.getElementById("connectButton");
+    const loadModelBtn = document.getElementById("loadModel");
 
     if (connectBtn) connectBtn.addEventListener("click", connectMicrobit);
     if (loadModelBtn) loadModelBtn.addEventListener("click", loadTeachableMachineModel);
@@ -107,7 +107,7 @@ window.onload = function () {
     }
 
     async function loadTeachableMachineModel() {
-        const modelURL = document.getElementById("modelInput")?.value;
+        const modelURL = document.getElementById("modelUrl")?.value;
         if (!modelURL) {
             console.error("❌ No model URL provided.");
             return;
@@ -116,21 +116,30 @@ window.onload = function () {
         try {
             console.log("📥 Loading Teachable Machine model...");
             model = await tmImage.load(modelURL + "model.json", modelURL + "metadata.json");
-            const flip = true;
-            webcam = new tmImage.Webcam(200, 200, flip);
+            webcam = new tmImage.Webcam(200, 200, true);
             await webcam.setup();
             await webcam.play();
-            document.getElementById("webcamContainer").appendChild(webcam.canvas);
+            document.getElementById("webcam").srcObject = webcam.canvas.captureStream();
+
+            document.getElementById("page1").classList.add("hidden");
+            document.getElementById("page2").classList.remove("hidden");
 
             console.log("✅ Model Loaded Successfully.");
-            setInterval(startPrediction, 1000);
+            startPredictionLoop();
 
         } catch (error) {
             console.error("❌ Model loading failed:", error);
         }
     }
 
-    async function startPrediction() {
+    async function startPredictionLoop() {
+        while (true) {
+            await predict();
+            await new Promise(resolve => setTimeout(resolve, 500)); // Predict every 500ms
+        }
+    }
+
+    async function predict() {
         if (!model || !webcam) return;
         webcam.update();
         const predictions = await model.predict(webcam.canvas);
