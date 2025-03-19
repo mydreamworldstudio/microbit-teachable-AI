@@ -1,15 +1,27 @@
 {
-    "name": "Teachable Machine PWA",
-    "short_name": "TM-PWA",
+    "name": "Micro:bit Teachable AI",
+    "short_name": "Teachable AI",
+    "description": "A PWA that loads a Teachable Machine model and connects with a micro:bit for AI-based execution.",
     "start_url": "index.html",
+    "scope": "./",
     "display": "standalone",
+    "orientation": "portrait",
     "background_color": "#ffffff",
     "theme_color": "#000000",
     "icons": [
         {
-            "src": "icon.png",
+            "src": "icons/icon-192.png",
             "sizes": "192x192",
             "type": "image/png"
+        },
+        {
+            "src": "icons/icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
         }
+    ],
+    "permissions": [
+        "camera",
+        "bluetooth"
     ]
 }
