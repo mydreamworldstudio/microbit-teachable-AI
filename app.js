@@ -110,29 +110,23 @@ window.onload = function () {
         loop();
     }
 
-    // ✅ Improved Prediction Function (Prevents Duplicate Sends)
-async function predict() {
-    if (!model || !webcam) return;
-    webcam.update();
-    const predictions = await model.predict(webcam.canvas);
+    // ✅ Prediction Function
+    async function predict() {
+        if (!model || !videoElement) return;
 
-    let bestPrediction = predictions.reduce((prev, current) => 
-        (prev.probability > current.probability ? prev : current)
-    );
+        const predictions = await model.predict(videoElement);
 
-    if (bestPrediction.className !== lastPrediction) {
-        lastPrediction = bestPrediction.className;
-        console.log("📡 Result:", lastPrediction);
-        
-        // ✅ Only send if the result is different from the last sent result
-        if (lastPrediction !== lastSentResult) {
-            lastSentResult = lastPrediction;
+        let bestPrediction = predictions.reduce((prev, current) =>
+            (prev.probability > current.probability ? prev : current)
+        );
+
+        if (bestPrediction.className !== lastPrediction) {
+            lastPrediction = bestPrediction.className;
+            console.log("📡 Result:", lastPrediction);
             document.getElementById("output").innerText = lastPrediction;
             sendUART(lastPrediction);
         }
     }
-}
-
 
     // ✅ Connect Micro:bit
     async function connectMicrobit() {
@@ -236,3 +230,4 @@ async function predict() {
         }
     }
 };
+
