@@ -24,13 +24,13 @@
         {
             "src": "icons/screenshot_mobile.png",
             "sizes": "720x1280",
-            "type": "image/png"
+            "type": "image/png",
             "form_factor": "narrow"
         },
         {
             "src": "icons/screenshot_desktop.png",
             "sizes": "1280x720",
-            "type": "image/png"
+            "type": "image/png",
             "form_factor": "wide"
         }
     ],
