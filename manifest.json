@@ -1,8 +1,9 @@
 {
+    "id": "/microbit-teachable-AI/index.html",
     "name": "Micro:bit Teachable AI",
     "short_name": "Teachable AI",
     "description": "A PWA that loads a Teachable Machine model and connects with a micro:bit for AI-based execution.",
-    "start_url": "index.html",
+    "start_url": "/microbit-teachable-AI/index.html",
     "scope": "./",
     "display": "standalone",
     "orientation": "portrait",
