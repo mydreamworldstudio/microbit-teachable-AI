@@ -20,6 +20,18 @@
             "type": "image/png"
         }
     ],
+    "screenshots": [
+        {
+            "src": "icons/screenshot_mobile.png",
+            "sizes": "720x1280",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/screenshot_desktop.png",
+            "sizes": "1280x720",
+            "type": "image/png"
+        }
+    ]
     "permissions": [
         "camera",
         "bluetooth"
