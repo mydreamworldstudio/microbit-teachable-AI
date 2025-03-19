@@ -11,14 +11,14 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    min-height: 100vh;
     overflow: hidden;
     text-align: center;
 }
 
 .page {
-    width: 100%;
-    height: 100vh;
+    width: 100vw;
+    min-height: 100vh;
     position: absolute;
     display: flex;
     flex-direction: column;
@@ -37,7 +37,7 @@ body {
 }
 
 h1 {
-    font-size: 24px;
+    font-size: 26px;
     margin-bottom: 20px;
 }
 
@@ -50,6 +50,7 @@ input {
     border: none;
     text-align: center;
     margin-bottom: 20px;
+    outline: none;
 }
 
 /* ✅ Button styling */
@@ -62,20 +63,23 @@ button {
     border-radius: 5px;
     cursor: pointer;
     margin-top: 10px;
+    outline: none;
 }
 
 button:hover {
     background: #0056b3;
 }
 
-/* ✅ Button container to align "Connect" and "📷" buttons */
+/* ✅ Button container for alignment */
 .button-container {
     display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
     gap: 10px;
     margin-bottom: 10px;
 }
 
-/* ✅ Updated Camera Switch button to match "Connect" button */
+/* ✅ Improved Camera Switch button */
 #switchCameraButton {
     padding: 12px 20px;
     font-size: 18px;
@@ -90,7 +94,7 @@ button:hover {
     background: #0056b3;
 }
 
-/* ✅ Webcam container for better spacing */
+/* ✅ Webcam container improvements */
 #webcam-container {
     position: relative;
     width: 90%;
@@ -102,15 +106,16 @@ button:hover {
     overflow: hidden;
 }
 
-/* ✅ Ensure the video feed is properly sized */
+/* ✅ Ensure video feed scales properly */
 video {
     width: 100%;
+    height: auto;
     max-height: 300px;
     object-fit: cover;
     border-radius: 5px;
 }
 
-/* ✅ Improved output text visibility and spacing */
+/* ✅ Improved output text visibility */
 #output {
     font-size: 24px;
     font-weight: bold;
