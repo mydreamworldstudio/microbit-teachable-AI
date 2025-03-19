@@ -5,20 +5,21 @@ window.onload = function () {
     let model, webcam;
     let lastPrediction = "";
     let isPredicting = false;
-    let flipCamera = false; // For switching cameras
+    let useFrontCamera = true; // For front/back camera switching
 
     // Button References
     const connectBtn = document.getElementById("connectButton");
     const loadModelBtn = document.getElementById("loadModelButton");
 
-    // Create Camera Switch Button as an Icon 📷
+    // Create Camera Switch Button 📷 (Single Instance)
     const switchCameraBtn = document.createElement("button");
-    switchCameraBtn.innerHTML = "📷"; 
+    switchCameraBtn.innerText = "📷 Switch Camera";
     switchCameraBtn.id = "switchCameraButton";
+    switchCameraBtn.classList.add("button"); // Apply same style as "Connect" button
     switchCameraBtn.style.marginLeft = "10px"; // Adjust spacing
 
-    // Add Camera Switch Icon 📷 next to Connect Button
-    if (connectBtn) {
+    // Add Camera Switch Button Next to Connect Button (Only Once)
+    if (connectBtn && !document.getElementById("switchCameraButton")) {
         connectBtn.insertAdjacentElement("afterend", switchCameraBtn);
         switchCameraBtn.addEventListener("click", switchCamera);
     }
@@ -39,18 +40,8 @@ window.onload = function () {
             console.log("📥 Loading Teachable Machine model...");
             model = await tmImage.load(modelURL + "/model.json", modelURL + "/metadata.json");
 
-            // ✅ Start Webcam
-            webcam = new tmImage.Webcam(250, 250, flipCamera); // Uses flipCamera setting
-            await webcam.setup();
-            await webcam.play();
-
-            // ✅ Replace the webcam display
-            const webcamContainer = document.createElement("div");
-            webcamContainer.id = "webcam-container";
-            webcamContainer.appendChild(webcam.canvas);
-
-            const oldWebcam = document.getElementById("webcam");
-            oldWebcam.parentNode.replaceChild(webcamContainer, oldWebcam);
+            // ✅ Start Webcam with front camera by default
+            await startWebcam(useFrontCamera);
 
             document.getElementById("page1").classList.add("hidden");
             document.getElementById("page2").classList.remove("hidden");
@@ -63,23 +54,28 @@ window.onload = function () {
         }
     }
 
-    // ✅ Switch Camera Function
-    async function switchCamera() {
-        if (!webcam) return;
-        flipCamera = !flipCamera; // Toggle camera mode
+    // ✅ Start or Restart Webcam
+    async function startWebcam(useFront) {
+        if (webcam) {
+            await webcam.stop(); // Stop current webcam before switching
+        }
 
-        console.log("🔄 Switching Camera...");
-        await webcam.stop();
-        webcam = new tmImage.Webcam(250, 250, flipCamera);
+        console.log("📸 Starting Webcam: " + (useFront ? "Front Camera" : "Back Camera"));
+        webcam = new tmImage.Webcam(250, 250, useFront ? "user" : "environment");
         await webcam.setup();
         await webcam.play();
 
-        // Replace webcam display
+        // ✅ Replace the webcam display
         const webcamContainer = document.getElementById("webcam-container");
         webcamContainer.innerHTML = ""; // Clear existing content
         webcamContainer.appendChild(webcam.canvas);
+    }
 
-        console.log("✅ Camera Switched.");
+    // ✅ Switch Camera Function (Front/Back Toggle)
+    async function switchCamera() {
+        useFrontCamera = !useFrontCamera; // Toggle front/back camera
+        console.log("🔄 Switching Camera...");
+        await startWebcam(useFrontCamera);
     }
 
     // ✅ Start Prediction Loop
