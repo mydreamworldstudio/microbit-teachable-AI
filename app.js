@@ -5,20 +5,29 @@ window.onload = function () {
     let model, webcam;
     let lastPrediction = "";
     let isPredicting = false;
-    let currentFacingMode = "user"; // Default to front camera
-    let videoStream = null;
+    let flipCamera = false; // For switching cameras
 
     // Button References
     const connectBtn = document.getElementById("connectButton");
     const loadModelBtn = document.getElementById("loadModelButton");
-    const switchCameraBtn = document.getElementById("switchCameraButton");
-    const outputDiv = document.getElementById("output");
+
+    // Create Camera Switch Button as an Icon 📷
+    const switchCameraBtn = document.createElement("button");
+    switchCameraBtn.innerHTML = "📷"; 
+    switchCameraBtn.id = "switchCameraButton";
+    switchCameraBtn.style.marginLeft = "10px"; // Adjust spacing
+
+    // Add Camera Switch Icon 📷 next to Connect Button
+    if (connectBtn) {
+        connectBtn.insertAdjacentElement("afterend", switchCameraBtn);
+        switchCameraBtn.addEventListener("click", switchCamera);
+    }
 
     // Event Listeners
-    if (connectBtn) connectBtn.addEventListener("click", connectMicrobit);
     if (loadModelBtn) loadModelBtn.addEventListener("click", loadTeachableMachineModel);
-    if (switchCameraBtn) switchCameraBtn.addEventListener("click", switchCamera);
+    if (connectBtn) connectBtn.addEventListener("click", connectMicrobit);
 
+    // ✅ Load Teachable Machine Model & Start Camera
     async function loadTeachableMachineModel() {
         const modelURL = document.getElementById("modelUrl")?.value;
         if (!modelURL) {
@@ -30,8 +39,19 @@ window.onload = function () {
             console.log("📥 Loading Teachable Machine model...");
             model = await tmImage.load(modelURL + "/model.json", modelURL + "/metadata.json");
 
-            await startCamera();  // Start camera before moving to page 2
-            
+            // ✅ Start Webcam
+            webcam = new tmImage.Webcam(250, 250, flipCamera); // Uses flipCamera setting
+            await webcam.setup();
+            await webcam.play();
+
+            // ✅ Replace the webcam display
+            const webcamContainer = document.createElement("div");
+            webcamContainer.id = "webcam-container";
+            webcamContainer.appendChild(webcam.canvas);
+
+            const oldWebcam = document.getElementById("webcam");
+            oldWebcam.parentNode.replaceChild(webcamContainer, oldWebcam);
+
             document.getElementById("page1").classList.add("hidden");
             document.getElementById("page2").classList.remove("hidden");
 
@@ -43,50 +63,37 @@ window.onload = function () {
         }
     }
 
-    async function startCamera() {
-        stopCamera(); // Stop previous camera before starting a new one
+    // ✅ Switch Camera Function
+    async function switchCamera() {
+        if (!webcam) return;
+        flipCamera = !flipCamera; // Toggle camera mode
 
-        const constraints = {
-            video: { facingMode: currentFacingMode }
-        };
+        console.log("🔄 Switching Camera...");
+        await webcam.stop();
+        webcam = new tmImage.Webcam(250, 250, flipCamera);
+        await webcam.setup();
+        await webcam.play();
 
-        try {
-            videoStream = await navigator.mediaDevices.getUserMedia(constraints);
-            const videoElement = document.getElementById("webcam");
-            videoElement.srcObject = videoStream;
+        // Replace webcam display
+        const webcamContainer = document.getElementById("webcam-container");
+        webcamContainer.innerHTML = ""; // Clear existing content
+        webcamContainer.appendChild(webcam.canvas);
 
-            webcam = new tmImage.Webcam(200, 200, true); 
-            await webcam.setup({ facingMode: currentFacingMode });
-            await webcam.play();
-            videoElement.appendChild(webcam.canvas);
-
-        } catch (error) {
-            console.error("❌ Camera access failed:", error);
-        }
+        console.log("✅ Camera Switched.");
     }
 
-    function switchCamera() {
-        currentFacingMode = currentFacingMode === "user" ? "environment" : "user"; 
-        startCamera();
-    }
-
-    function stopCamera() {
-        if (videoStream) {
-            videoStream.getTracks().forEach(track => track.stop());
-        }
-    }
-
+    // ✅ Start Prediction Loop
     async function startPredictionLoop() {
         if (isPredicting) return;
         isPredicting = true;
-
         function loop() {
             predict();
-            requestAnimationFrame(loop);
+            requestAnimationFrame(loop); // Runs continuously for smoother updates
         }
         loop();
     }
 
+    // ✅ Prediction Function
     async function predict() {
         if (!model || !webcam) return;
         webcam.update();
@@ -96,17 +103,15 @@ window.onload = function () {
             (prev.probability > current.probability ? prev : current)
         );
 
-        let newPrediction = bestPrediction.className;
-
-        if (newPrediction !== lastPrediction) {
-            lastPrediction = newPrediction;
+        if (bestPrediction.className !== lastPrediction) {
+            lastPrediction = bestPrediction.className;
             console.log("📡 Result:", lastPrediction);
-            outputDiv.innerText = lastPrediction;  // ✅ Only shows the result, no extra text
-
-            sendUART(lastPrediction); // ✅ Sending to micro:bit
+            document.getElementById("output").innerText = lastPrediction;
+            sendUART(lastPrediction);
         }
     }
 
+    // ✅ Connect Micro:bit
     async function connectMicrobit() {
         try {
             console.log("🔍 Searching for micro:bit...");
@@ -193,12 +198,18 @@ window.onload = function () {
     }
 
     function onTxCharacteristicValueChanged(event) {
-        let receivedString = new TextDecoder().decode(event.target.value);
+        let receivedData = [];
+        for (let i = 0; i < event.target.value.byteLength; i++) {
+            receivedData[i] = event.target.value.getUint8(i);
+        }
+        const receivedString = String.fromCharCode.apply(null, receivedData);
         console.log("📥 Received from micro:bit:", receivedString);
     }
 
     function enterFullScreen() {
         let elem = document.documentElement;
-        document.body.addEventListener('click', () => elem.requestFullscreen(), { once: true });
+        if (elem.requestFullscreen) {
+            document.body.addEventListener('click', () => elem.requestFullscreen(), { once: true });
+        }
     }
 };
