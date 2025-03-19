@@ -24,8 +24,13 @@
     <div id="page2" class="page hidden">
         <img src="logo.png" alt="Logo" class="logo">
         <h1>Micro:bit Teachable AI</h1>
-        <button id="connectButton">Connect Micro:bit</button>
-        <button id="switchCameraButton">Switch Camera</button> <!-- New Camera Switch Button -->
+        
+        <!-- Container for Connect and Camera Switch Buttons -->
+        <div class="button-container">
+            <button id="connectButton">Connect Micro:bit</button>
+            <button id="switchCameraButton">📷</button>
+        </div>
+
         <video id="webcam" autoplay playsinline></video>
         <div id="output">Waiting for prediction...</div>
     </div>
