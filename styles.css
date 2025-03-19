@@ -68,24 +68,26 @@ button:hover {
     background: #0056b3;
 }
 
-/* ✅ Button container to align buttons side-by-side */
+/* ✅ Button container to align "Connect" and "📷" buttons */
 .button-container {
     display: flex;
     gap: 10px;
     margin-bottom: 10px;
 }
 
-/* ✅ Style for switch camera button (📷) */
+/* ✅ Updated Camera Switch button to match "Connect" button */
 #switchCameraButton {
-    padding: 12px;
-    font-size: 20px;
-    width: 50px;
-    text-align: center;
-    background: #28a745;
+    padding: 12px 20px;
+    font-size: 18px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
 }
 
 #switchCameraButton:hover {
-    background: #218838;
+    background: #0056b3;
 }
 
 /* ✅ Webcam container for better spacing */
