@@ -10,17 +10,10 @@ window.onload = function () {
     // Button References
     const connectBtn = document.getElementById("connectButton");
     const loadModelBtn = document.getElementById("loadModelButton");
+    const switchCameraBtn = document.getElementById("switchCameraButton"); // Already in HTML
 
-    // Create Camera Switch Button 📷 (Single Instance)
-    const switchCameraBtn = document.createElement("button");
-    switchCameraBtn.innerText = "📷 Switch Camera";
-    switchCameraBtn.id = "switchCameraButton";
-    switchCameraBtn.classList.add("button"); // Apply same style as "Connect" button
-    switchCameraBtn.style.marginLeft = "10px"; // Adjust spacing
-
-    // Add Camera Switch Button Next to Connect Button (Only Once)
-    if (connectBtn && !document.getElementById("switchCameraButton")) {
-        connectBtn.insertAdjacentElement("afterend", switchCameraBtn);
+    // Ensure Switch Camera Button has Event Listener
+    if (switchCameraBtn) {
         switchCameraBtn.addEventListener("click", switchCamera);
     }
 
@@ -67,8 +60,12 @@ window.onload = function () {
 
         // ✅ Replace the webcam display
         const webcamContainer = document.getElementById("webcam-container");
-        webcamContainer.innerHTML = ""; // Clear existing content
-        webcamContainer.appendChild(webcam.canvas);
+        if (webcamContainer) {
+            webcamContainer.innerHTML = ""; // Clear existing content
+            webcamContainer.appendChild(webcam.canvas);
+        } else {
+            console.error("❌ webcam-container not found.");
+        }
     }
 
     // ✅ Switch Camera Function (Front/Back Toggle)
