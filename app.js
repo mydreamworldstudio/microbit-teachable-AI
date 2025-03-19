@@ -19,8 +19,31 @@ window.onload = function () {
     }
 
     // Event Listeners
-    if (loadModelBtn) loadModelBtn.addEventListener("click", loadTeachableMachineModel);
-    if (connectBtn) connectBtn.addEventListener("click", connectMicrobit);
+    if (loadModelBtn) {
+        loadModelBtn.addEventListener("click", () => {
+            enterFullScreen(); // ✅ Force fullscreen on Load Model click
+            loadTeachableMachineModel();
+        });
+    }
+    
+    if (connectBtn) {
+        connectBtn.addEventListener("click", () => {
+            enterFullScreen(); // ✅ Force fullscreen on Connect click
+            connectMicrobit();
+        });
+    }
+
+    // ✅ Enter Fullscreen Function
+    function enterFullScreen() {
+        let elem = document.documentElement;
+        if (elem.requestFullscreen) {
+            elem.requestFullscreen().catch(err => console.warn("Fullscreen request failed:", err));
+        } else if (elem.webkitRequestFullscreen) { /* Safari */
+            elem.webkitRequestFullscreen();
+        } else if (elem.msRequestFullscreen) { /* IE11 */
+            elem.msRequestFullscreen();
+        }
+    }
 
     // ✅ Load Teachable Machine Model & Start Camera
     async function loadTeachableMachineModel() {
@@ -139,7 +162,6 @@ window.onload = function () {
 
             console.log("🔗 Connecting to GATT Server...");
             await connectToGattServer();
-            enterFullScreen();
 
         } catch (error) {
             console.error("❌ Connection failed:", error);
@@ -184,7 +206,6 @@ window.onload = function () {
                     await connectToGattServer();
                     console.log("✅ Reconnected!");
                     updateConnectionStatus(true);
-                    enterFullScreen();
                 } catch (error) {
                     console.error("❌ Reconnect failed:", error);
                 }
@@ -222,12 +243,4 @@ window.onload = function () {
         const receivedString = String.fromCharCode.apply(null, receivedData);
         console.log("📥 Received from micro:bit:", receivedString);
     }
-
-    function enterFullScreen() {
-        let elem = document.documentElement;
-        if (elem.requestFullscreen) {
-            document.body.addEventListener('click', () => elem.requestFullscreen(), { once: true });
-        }
-    }
 };
-
