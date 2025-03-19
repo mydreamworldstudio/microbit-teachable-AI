@@ -6,6 +6,7 @@ window.onload = function () {
     let lastPrediction = "";
     let isPredicting = false;
     let currentFacingMode = "user"; // Default to front camera
+    let videoStream = null;
 
     // Button References
     const connectBtn = document.getElementById("connectButton");
@@ -29,7 +30,7 @@ window.onload = function () {
             console.log("📥 Loading Teachable Machine model...");
             model = await tmImage.load(modelURL + "/model.json", modelURL + "/metadata.json");
 
-            await startCamera();
+            await startCamera();  // Start camera before moving to page 2
             
             document.getElementById("page1").classList.add("hidden");
             document.getElementById("page2").classList.remove("hidden");
@@ -43,20 +44,22 @@ window.onload = function () {
     }
 
     async function startCamera() {
-        stopCamera();
+        stopCamera(); // Stop previous camera before starting a new one
 
         const constraints = {
-            video: { facingMode: currentFacingMode } 
+            video: { facingMode: currentFacingMode }
         };
 
         try {
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            videoStream = await navigator.mediaDevices.getUserMedia(constraints);
             const videoElement = document.getElementById("webcam");
-            videoElement.srcObject = stream;
+            videoElement.srcObject = videoStream;
+
             webcam = new tmImage.Webcam(200, 200, true); 
-            await webcam.setup(); 
+            await webcam.setup({ facingMode: currentFacingMode });
             await webcam.play();
             videoElement.appendChild(webcam.canvas);
+
         } catch (error) {
             console.error("❌ Camera access failed:", error);
         }
@@ -68,11 +71,8 @@ window.onload = function () {
     }
 
     function stopCamera() {
-        let videoElement = document.getElementById("webcam");
-        let stream = videoElement.srcObject;
-        if (stream) {
-            let tracks = stream.getTracks();
-            tracks.forEach(track => track.stop());
+        if (videoStream) {
+            videoStream.getTracks().forEach(track => track.stop());
         }
     }
 
@@ -101,7 +101,7 @@ window.onload = function () {
         if (newPrediction !== lastPrediction) {
             lastPrediction = newPrediction;
             console.log("📡 Result:", lastPrediction);
-            outputDiv.innerText = `Prediction: ${lastPrediction}`;  // ✅ Updating output
+            outputDiv.innerText = lastPrediction;  // ✅ Only shows the result, no extra text
 
             sendUART(lastPrediction); // ✅ Sending to micro:bit
         }
