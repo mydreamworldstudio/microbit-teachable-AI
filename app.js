@@ -5,19 +5,16 @@ window.onload = function () {
     let model, webcam;
     let lastPrediction = "";
     let isPredicting = false;
-    let useFrontCamera = true; // For front/back camera switching
+    let useFrontCamera = true; // Default to front camera
+    let stream = null; // Store current camera stream
 
     // Button References
     const connectBtn = document.getElementById("connectButton");
     const loadModelBtn = document.getElementById("loadModelButton");
-    const switchCameraBtn = document.getElementById("switchCameraButton"); // Already in HTML
-
-    // Ensure Switch Camera Button has Event Listener
-    if (switchCameraBtn) {
-        switchCameraBtn.addEventListener("click", switchCamera);
-    }
+    const switchCameraBtn = document.getElementById("switchCameraButton");
 
     // Event Listeners
+    if (switchCameraBtn) switchCameraBtn.addEventListener("click", switchCamera);
     if (loadModelBtn) loadModelBtn.addEventListener("click", loadTeachableMachineModel);
     if (connectBtn) connectBtn.addEventListener("click", connectMicrobit);
 
@@ -50,21 +47,36 @@ window.onload = function () {
     // ✅ Start or Restart Webcam
     async function startWebcam(useFront) {
         if (webcam) {
-            await webcam.stop(); // Stop current webcam before switching
+            await webcam.stop(); // Stop the previous webcam before switching
         }
 
         console.log("📸 Starting Webcam: " + (useFront ? "Front Camera" : "Back Camera"));
-        webcam = new tmImage.Webcam(250, 250, useFront ? "user" : "environment");
-        await webcam.setup();
-        await webcam.play();
+        
+        // Ensure any previous camera stream is stopped
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
 
-        // ✅ Replace the webcam display
-        const webcamContainer = document.getElementById("webcam-container");
-        if (webcamContainer) {
-            webcamContainer.innerHTML = ""; // Clear existing content
-            webcamContainer.appendChild(webcam.canvas);
-        } else {
-            console.error("❌ webcam-container not found.");
+        // Request new camera stream
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: useFront ? "user" : "environment" }
+            });
+
+            webcam = new tmImage.Webcam(250, 250, useFront ? "user" : "environment");
+            await webcam.setup();
+            await webcam.play();
+
+            // ✅ Replace the webcam display
+            const webcamContainer = document.getElementById("webcam-container");
+            if (webcamContainer) {
+                webcamContainer.innerHTML = ""; // Clear existing content
+                webcamContainer.appendChild(webcam.canvas);
+            } else {
+                console.error("❌ webcam-container not found.");
+            }
+        } catch (error) {
+            console.error("❌ Error accessing the camera:", error);
         }
     }
 
