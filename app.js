@@ -10,7 +10,8 @@ window.onload = function () {
     // Button References
     const connectBtn = document.getElementById("connectButton");
     const loadModelBtn = document.getElementById("loadModelButton");
-    const switchCameraBtn = document.getElementById("switchCameraButton"); // New button
+    const switchCameraBtn = document.getElementById("switchCameraButton");
+    const outputDiv = document.getElementById("output");
 
     // Event Listeners
     if (connectBtn) connectBtn.addEventListener("click", connectMicrobit);
@@ -28,9 +29,8 @@ window.onload = function () {
             console.log("📥 Loading Teachable Machine model...");
             model = await tmImage.load(modelURL + "/model.json", modelURL + "/metadata.json");
 
-            // ✅ Start Webcam with initial facing mode
             await startCamera();
-
+            
             document.getElementById("page1").classList.add("hidden");
             document.getElementById("page2").classList.remove("hidden");
 
@@ -43,24 +43,28 @@ window.onload = function () {
     }
 
     async function startCamera() {
-        stopCamera(); // Stop any existing camera stream
+        stopCamera();
 
         const constraints = {
-            video: { facingMode: currentFacingMode } // Use selected camera
+            video: { facingMode: currentFacingMode } 
         };
 
         try {
             const stream = await navigator.mediaDevices.getUserMedia(constraints);
             const videoElement = document.getElementById("webcam");
             videoElement.srcObject = stream;
+            webcam = new tmImage.Webcam(200, 200, true); 
+            await webcam.setup(); 
+            await webcam.play();
+            videoElement.appendChild(webcam.canvas);
         } catch (error) {
             console.error("❌ Camera access failed:", error);
         }
     }
 
     function switchCamera() {
-        currentFacingMode = currentFacingMode === "user" ? "environment" : "user"; // Toggle camera
-        startCamera(); // Restart camera with new facing mode
+        currentFacingMode = currentFacingMode === "user" ? "environment" : "user"; 
+        startCamera();
     }
 
     function stopCamera() {
@@ -68,13 +72,14 @@ window.onload = function () {
         let stream = videoElement.srcObject;
         if (stream) {
             let tracks = stream.getTracks();
-            tracks.forEach(track => track.stop()); // Stop all tracks
+            tracks.forEach(track => track.stop());
         }
     }
 
     async function startPredictionLoop() {
         if (isPredicting) return;
         isPredicting = true;
+
         function loop() {
             predict();
             requestAnimationFrame(loop);
@@ -91,11 +96,14 @@ window.onload = function () {
             (prev.probability > current.probability ? prev : current)
         );
 
-        if (bestPrediction.className !== lastPrediction) {
-            lastPrediction = bestPrediction.className;
+        let newPrediction = bestPrediction.className;
+
+        if (newPrediction !== lastPrediction) {
+            lastPrediction = newPrediction;
             console.log("📡 Result:", lastPrediction);
-            document.getElementById("output").innerText = lastPrediction;
-            sendUART(lastPrediction);
+            outputDiv.innerText = `Prediction: ${lastPrediction}`;  // ✅ Updating output
+
+            sendUART(lastPrediction); // ✅ Sending to micro:bit
         }
     }
 
