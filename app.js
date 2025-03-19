@@ -5,16 +5,18 @@ window.onload = function () {
     let model, webcam;
     let lastPrediction = "";
     let isPredicting = false;
+    let currentFacingMode = "user"; // Default to front camera
 
     // Button References
     const connectBtn = document.getElementById("connectButton");
     const loadModelBtn = document.getElementById("loadModelButton");
+    const switchCameraBtn = document.getElementById("switchCameraButton"); // New button
 
     // Event Listeners
     if (connectBtn) connectBtn.addEventListener("click", connectMicrobit);
     if (loadModelBtn) loadModelBtn.addEventListener("click", loadTeachableMachineModel);
+    if (switchCameraBtn) switchCameraBtn.addEventListener("click", switchCamera);
 
-    // ✅ Load Teachable Machine Model & Start Camera
     async function loadTeachableMachineModel() {
         const modelURL = document.getElementById("modelUrl")?.value;
         if (!modelURL) {
@@ -26,18 +28,8 @@ window.onload = function () {
             console.log("📥 Loading Teachable Machine model...");
             model = await tmImage.load(modelURL + "/model.json", modelURL + "/metadata.json");
 
-            // ✅ Start Webcam
-            webcam = new tmImage.Webcam(250, 250, true);
-            await webcam.setup();
-            await webcam.play();
-
-            // ✅ Replace the webcam display
-            const webcamContainer = document.createElement("div");
-            webcamContainer.id = "webcam-container";
-            webcamContainer.appendChild(webcam.canvas);
-
-            const oldWebcam = document.getElementById("webcam");
-            oldWebcam.parentNode.replaceChild(webcamContainer, oldWebcam);
+            // ✅ Start Webcam with initial facing mode
+            await startCamera();
 
             document.getElementById("page1").classList.add("hidden");
             document.getElementById("page2").classList.remove("hidden");
@@ -50,18 +42,46 @@ window.onload = function () {
         }
     }
 
-    // ✅ Start Prediction Loop
+    async function startCamera() {
+        stopCamera(); // Stop any existing camera stream
+
+        const constraints = {
+            video: { facingMode: currentFacingMode } // Use selected camera
+        };
+
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
+            const videoElement = document.getElementById("webcam");
+            videoElement.srcObject = stream;
+        } catch (error) {
+            console.error("❌ Camera access failed:", error);
+        }
+    }
+
+    function switchCamera() {
+        currentFacingMode = currentFacingMode === "user" ? "environment" : "user"; // Toggle camera
+        startCamera(); // Restart camera with new facing mode
+    }
+
+    function stopCamera() {
+        let videoElement = document.getElementById("webcam");
+        let stream = videoElement.srcObject;
+        if (stream) {
+            let tracks = stream.getTracks();
+            tracks.forEach(track => track.stop()); // Stop all tracks
+        }
+    }
+
     async function startPredictionLoop() {
         if (isPredicting) return;
         isPredicting = true;
         function loop() {
             predict();
-            requestAnimationFrame(loop); // Runs continuously for smoother updates
+            requestAnimationFrame(loop);
         }
         loop();
     }
 
-    // ✅ Prediction Function
     async function predict() {
         if (!model || !webcam) return;
         webcam.update();
@@ -74,12 +94,11 @@ window.onload = function () {
         if (bestPrediction.className !== lastPrediction) {
             lastPrediction = bestPrediction.className;
             console.log("📡 Result:", lastPrediction);
-            document.getElementById("output").innerText = lastPrediction; // ✅ No extra text, only result
+            document.getElementById("output").innerText = lastPrediction;
             sendUART(lastPrediction);
         }
     }
 
-    // ✅ Connect Micro:bit
     async function connectMicrobit() {
         try {
             console.log("🔍 Searching for micro:bit...");
@@ -124,26 +143,24 @@ window.onload = function () {
         }
     }
 
-    // ✅ Improved Auto-Reconnect Function
-   async function reconnectMicrobit() {
-    console.warn("⚠️ Micro:bit disconnected. Attempting to reconnect...");
-    updateConnectionStatus(false);
+    async function reconnectMicrobit() {
+        console.warn("⚠️ Micro:bit disconnected. Attempting to reconnect...");
+        updateConnectionStatus(false);
 
-    setTimeout(async () => {
-        if (uBitDevice && uBitDevice.gatt.connected === false) {
-            try {
-                console.log("🔄 Reconnecting...");
-                await connectToGattServer();
-                console.log("✅ Reconnected!");
-                updateConnectionStatus(true);
-                enterFullScreen(); // Ensure full-screen mode is maintained
-            } catch (error) {
-                console.error("❌ Reconnect failed:", error);
+        setTimeout(async () => {
+            if (uBitDevice && uBitDevice.gatt.connected === false) {
+                try {
+                    console.log("🔄 Reconnecting...");
+                    await connectToGattServer();
+                    console.log("✅ Reconnected!");
+                    updateConnectionStatus(true);
+                    enterFullScreen();
+                } catch (error) {
+                    console.error("❌ Reconnect failed:", error);
+                }
             }
-        }
-    }, 3000); // Try reconnecting after 3 seconds
-}
-
+        }, 3000);
+    }
 
     function updateConnectionStatus(connected) {
         if (!connectBtn) return;
@@ -168,19 +185,12 @@ window.onload = function () {
     }
 
     function onTxCharacteristicValueChanged(event) {
-        let receivedData = [];
-        for (let i = 0; i < event.target.value.byteLength; i++) {
-            receivedData[i] = event.target.value.getUint8(i);
-        }
-        const receivedString = String.fromCharCode.apply(null, receivedData);
+        let receivedString = new TextDecoder().decode(event.target.value);
         console.log("📥 Received from micro:bit:", receivedString);
     }
 
-    // ✅ Fullscreen only when user clicks (fixes error)
     function enterFullScreen() {
         let elem = document.documentElement;
-        if (elem.requestFullscreen) {
-            document.body.addEventListener('click', () => elem.requestFullscreen(), { once: true });
-        }
+        document.body.addEventListener('click', () => elem.requestFullscreen(), { once: true });
     }
 };
