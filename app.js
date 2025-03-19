@@ -2,19 +2,23 @@ window.onload = function () {
     let uBitDevice;
     let rxCharacteristic;
     let txCharacteristic;
-    let model, webcam;
+    let model;
     let lastPrediction = "";
     let isPredicting = false;
-    let useFrontCamera = true; // Default to front camera
-    let stream = null; // Store current camera stream
+    let currentFacingMode = "user"; // Default to front camera
+    let videoElement;
 
     // Button References
     const connectBtn = document.getElementById("connectButton");
     const loadModelBtn = document.getElementById("loadModelButton");
     const switchCameraBtn = document.getElementById("switchCameraButton");
 
+    // Ensure Switch Camera Button has Event Listener
+    if (switchCameraBtn) {
+        switchCameraBtn.addEventListener("click", switchCamera);
+    }
+
     // Event Listeners
-    if (switchCameraBtn) switchCameraBtn.addEventListener("click", switchCamera);
     if (loadModelBtn) loadModelBtn.addEventListener("click", loadTeachableMachineModel);
     if (connectBtn) connectBtn.addEventListener("click", connectMicrobit);
 
@@ -30,8 +34,8 @@ window.onload = function () {
             console.log("📥 Loading Teachable Machine model...");
             model = await tmImage.load(modelURL + "/model.json", modelURL + "/metadata.json");
 
-            // ✅ Start Webcam with front camera by default
-            await startWebcam(useFrontCamera);
+            // ✅ Start Camera with Front Camera Default
+            await startCamera();
 
             document.getElementById("page1").classList.add("hidden");
             document.getElementById("page2").classList.remove("hidden");
@@ -44,53 +48,61 @@ window.onload = function () {
         }
     }
 
-    // ✅ Start or Restart Webcam
-    async function startWebcam(useFront) {
-        if (webcam) {
-            await webcam.stop(); // Stop the previous webcam before switching
-        }
+    // ✅ Start Camera Function
+    async function startCamera() {
+        const constraints = {
+            video: { facingMode: currentFacingMode }
+        };
 
-        console.log("📸 Starting Webcam: " + (useFront ? "Front Camera" : "Back Camera"));
-        
-        // Ensure any previous camera stream is stopped
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-        }
-
-        // Request new camera stream
         try {
-            stream = await navigator.mediaDevices.getUserMedia({
-                video: { facingMode: useFront ? "user" : "environment" }
-            });
+            const stream = await navigator.mediaDevices.getUserMedia(constraints);
 
-            webcam = new tmImage.Webcam(250, 250, useFront ? "user" : "environment");
-            await webcam.setup();
-            await webcam.play();
-
-            // ✅ Replace the webcam display
-            const webcamContainer = document.getElementById("webcam-container");
-            if (webcamContainer) {
-                webcamContainer.innerHTML = ""; // Clear existing content
-                webcamContainer.appendChild(webcam.canvas);
-            } else {
-                console.error("❌ webcam-container not found.");
+            // ✅ Ensure a video element exists for the camera
+            videoElement = document.getElementById("video");
+            if (!videoElement) {
+                videoElement = document.createElement("video");
+                videoElement.id = "video";
+                videoElement.autoplay = true;
+                videoElement.playsInline = true;
+                
+                const webcamContainer = document.getElementById("webcam-container");
+                if (webcamContainer) {
+                    webcamContainer.innerHTML = "";
+                    webcamContainer.appendChild(videoElement);
+                } else {
+                    console.error("❌ webcam-container not found.");
+                }
             }
+
+            videoElement.srcObject = stream;
+            videoElement.play();
+
         } catch (error) {
-            console.error("❌ Error accessing the camera:", error);
+            console.error("❌ Error accessing camera:", error);
         }
     }
 
-    // ✅ Switch Camera Function (Front/Back Toggle)
-    async function switchCamera() {
-        useFrontCamera = !useFrontCamera; // Toggle front/back camera
-        console.log("🔄 Switching Camera...");
-        await startWebcam(useFrontCamera);
+    // ✅ Stop Camera Function
+    function stopCamera() {
+        if (videoElement && videoElement.srcObject) {
+            let tracks = videoElement.srcObject.getTracks();
+            tracks.forEach(track => track.stop());
+        }
+    }
+
+    // ✅ Switch Camera Function
+    function switchCamera() {
+        currentFacingMode = currentFacingMode === "user" ? "environment" : "user";
+        console.log("🔄 Switching Camera to:", currentFacingMode);
+        stopCamera();
+        startCamera();
     }
 
     // ✅ Start Prediction Loop
     async function startPredictionLoop() {
         if (isPredicting) return;
         isPredicting = true;
+
         function loop() {
             predict();
             requestAnimationFrame(loop); // Runs continuously for smoother updates
@@ -100,11 +112,11 @@ window.onload = function () {
 
     // ✅ Prediction Function
     async function predict() {
-        if (!model || !webcam) return;
-        webcam.update();
-        const predictions = await model.predict(webcam.canvas);
+        if (!model || !videoElement) return;
 
-        let bestPrediction = predictions.reduce((prev, current) => 
+        const predictions = await model.predict(videoElement);
+
+        let bestPrediction = predictions.reduce((prev, current) =>
             (prev.probability > current.probability ? prev : current)
         );
 
