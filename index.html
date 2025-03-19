@@ -25,13 +25,17 @@
         <img src="logo.png" alt="Logo" class="logo">
         <h1>Micro:bit Teachable AI</h1>
         
-        <!-- Container for Connect and Camera Switch Buttons -->
+        <!-- Button Container -->
         <div class="button-container">
             <button id="connectButton">Connect Micro:bit</button>
-            <button id="switchCameraButton">📷</button>
+            <button id="switchCameraButton" class="camera-btn">📷</button>
         </div>
 
-        <video id="webcam" autoplay playsinline></video>
+        <!-- Webcam Container to Avoid Null Errors -->
+        <div id="webcam-container">
+            <video id="webcam" autoplay playsinline></video>
+        </div>
+
         <div id="output">Waiting for prediction...</div>
     </div>
 
