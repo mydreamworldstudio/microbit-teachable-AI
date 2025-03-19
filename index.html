@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Micro:bit Teachable AI</title>
-    
     <link rel="stylesheet" href="styles.css">
     <link rel="manifest" href="manifest.json">
     <link rel="icon" type="image/png" href="favicon.png">
@@ -16,10 +15,7 @@
 <body>
     <!-- First Page -->
     <div id="page1" class="page">
-        <picture>
-            <source srcset="logo-dark.png" media="(prefers-color-scheme: dark)">
-            <img src="logo-light.png" alt="Micro:bit Teachable AI Logo" class="logo">
-        </picture>
+        <img src="logo.png" alt="Logo" class="logo">
         <h1>Micro:bit Teachable AI</h1>
         <input type="text" id="modelUrl" placeholder="Enter Teachable Machine Model URL">
         <button id="loadModelButton">Load Model</button>
@@ -27,10 +23,7 @@
 
     <!-- Second Page -->
     <div id="page2" class="page hidden">
-        <picture>
-            <source srcset="logo-dark.png" media="(prefers-color-scheme: dark)">
-            <img src="logo-light.png" alt="Micro:bit Teachable AI Logo" class="logo">
-        </picture>
+        <img src="logo.png" alt="Logo" class="logo">
         <h1>Micro:bit Teachable AI</h1>
         
         <!-- Button Container -->
@@ -39,9 +32,9 @@
             <button id="switchCameraButton" class="camera-btn">📷</button>
         </div>
 
-        <!-- Webcam Container -->
+        <!-- Webcam Container to Avoid Null Errors -->
         <div id="webcam-container">
-            <video id="video" autoplay playsinline></video>
+            <video id="webcam" autoplay playsinline></video>
         </div>
 
         <div id="output">Waiting for prediction...</div>
