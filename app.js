@@ -10,29 +10,16 @@ window.onload = function () {
 
     // Button References
     const connectBtn = document.getElementById("connectButton");
-    const loadModelBtn = document.getElementById("loadModelButton");
-    const switchCameraBtn = document.getElementById("switchCameraButton");
 
-    // Ensure Switch Camera Button has Event Listener
-    if (switchCameraBtn) {
-        switchCameraBtn.addEventListener("click", switchCamera);
-    }
-
-    // Load Model Button Click
-    if (loadModelBtn) {
-        loadModelBtn.addEventListener("click", () => {
-            enterFullScreen(); // ✅ Force fullscreen on Load Model click
-            loadTeachableMachineModel();
-        });
-    }
-
-    // ✅ Connect Button Click (Fix: Runs requestDevice inside user gesture)
+    // ✅ Fix: Ensure Bluetooth request runs directly inside user-initiated event
     if (connectBtn) {
         connectBtn.addEventListener("click", async function () {
-            try {
-                enterFullScreen(); // ✅ Force fullscreen on Connect click
+            enterFullScreen(); // ✅ Force fullscreen on user click
 
+            try {
                 console.log("🔍 Searching for micro:bit...");
+                
+                // ✅ Bluetooth Request MUST be inside user-initiated event
                 uBitDevice = await navigator.bluetooth.requestDevice({
                     filters: [{ namePrefix: "BBC micro:bit" }],
                     optionalServices: ["6e400001-b5a3-f393-e0a9-e50e24dcca9e"]
@@ -45,124 +32,6 @@ window.onload = function () {
                 console.error("❌ Connection failed:", error);
             }
         });
-    }
-
-    // ✅ Enter Fullscreen Function
-    function enterFullScreen() {
-        let elem = document.documentElement;
-        if (elem.requestFullscreen) {
-            elem.requestFullscreen().catch(err => console.warn("Fullscreen request failed:", err));
-        } else if (elem.webkitRequestFullscreen) { /* Safari */
-            elem.webkitRequestFullscreen();
-        } else if (elem.msRequestFullscreen) { /* IE11 */
-            elem.msRequestFullscreen();
-        }
-    }
-
-    // ✅ Load Teachable Machine Model & Start Camera
-    async function loadTeachableMachineModel() {
-        const modelURL = document.getElementById("modelUrl")?.value;
-        if (!modelURL) {
-            console.error("❌ No model URL provided.");
-            return;
-        }
-
-        try {
-            console.log("📥 Loading Teachable Machine model...");
-            model = await tmImage.load(modelURL + "/model.json", modelURL + "/metadata.json");
-
-            // ✅ Start Camera with Front Camera Default
-            await startCamera();
-
-            document.getElementById("page1").classList.add("hidden");
-            document.getElementById("page2").classList.remove("hidden");
-
-            console.log("✅ Model Loaded Successfully.");
-            startPredictionLoop();
-
-        } catch (error) {
-            console.error("❌ Model loading failed:", error);
-        }
-    }
-
-    // ✅ Start Camera Function
-    async function startCamera() {
-        const constraints = {
-            video: { facingMode: currentFacingMode }
-        };
-
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia(constraints);
-
-            // ✅ Ensure a video element exists for the camera
-            videoElement = document.getElementById("video");
-            if (!videoElement) {
-                videoElement = document.createElement("video");
-                videoElement.id = "video";
-                videoElement.autoplay = true;
-                videoElement.playsInline = true;
-                
-                const webcamContainer = document.getElementById("webcam-container");
-                if (webcamContainer) {
-                    webcamContainer.innerHTML = "";
-                    webcamContainer.appendChild(videoElement);
-                } else {
-                    console.error("❌ webcam-container not found.");
-                }
-            }
-
-            videoElement.srcObject = stream;
-            videoElement.play();
-
-        } catch (error) {
-            console.error("❌ Error accessing camera:", error);
-        }
-    }
-
-    // ✅ Stop Camera Function
-    function stopCamera() {
-        if (videoElement && videoElement.srcObject) {
-            let tracks = videoElement.srcObject.getTracks();
-            tracks.forEach(track => track.stop());
-        }
-    }
-
-    // ✅ Switch Camera Function
-    function switchCamera() {
-        currentFacingMode = currentFacingMode === "user" ? "environment" : "user";
-        console.log("🔄 Switching Camera to:", currentFacingMode);
-        stopCamera();
-        startCamera();
-    }
-
-    // ✅ Start Prediction Loop
-    async function startPredictionLoop() {
-        if (isPredicting) return;
-        isPredicting = true;
-
-        function loop() {
-            predict();
-            requestAnimationFrame(loop); // Runs continuously for smoother updates
-        }
-        loop();
-    }
-
-    // ✅ Prediction Function
-    async function predict() {
-        if (!model || !videoElement) return;
-
-        const predictions = await model.predict(videoElement);
-
-        let bestPrediction = predictions.reduce((prev, current) =>
-            (prev.probability > current.probability ? prev : current)
-        );
-
-        if (bestPrediction.className !== lastPrediction) {
-            lastPrediction = bestPrediction.className;
-            console.log("📡 Result:", lastPrediction);
-            document.getElementById("output").innerText = lastPrediction;
-            sendUART(lastPrediction);
-        }
     }
 
     // ✅ Connect to micro:bit GATT Server
@@ -191,24 +60,6 @@ window.onload = function () {
             console.error("❌ GATT Connection Failed:", error);
             updateConnectionStatus(false);
         }
-    }
-
-    async function reconnectMicrobit() {
-        console.warn("⚠️ Micro:bit disconnected. Attempting to reconnect...");
-        updateConnectionStatus(false);
-
-        setTimeout(async () => {
-            if (uBitDevice && uBitDevice.gatt.connected === false) {
-                try {
-                    console.log("🔄 Reconnecting...");
-                    await connectToGattServer();
-                    console.log("✅ Reconnected!");
-                    updateConnectionStatus(true);
-                } catch (error) {
-                    console.error("❌ Reconnect failed:", error);
-                }
-            }
-        }, 3000);
     }
 
     function updateConnectionStatus(connected) {
@@ -240,5 +91,17 @@ window.onload = function () {
         }
         const receivedString = String.fromCharCode.apply(null, receivedData);
         console.log("📥 Received from micro:bit:", receivedString);
+    }
+
+    // ✅ Enter Fullscreen Function
+    function enterFullScreen() {
+        let elem = document.documentElement;
+        if (elem.requestFullscreen) {
+            elem.requestFullscreen().catch(err => console.warn("Fullscreen request failed:", err));
+        } else if (elem.webkitRequestFullscreen) { /* Safari */
+            elem.webkitRequestFullscreen();
+        } else if (elem.msRequestFullscreen) { /* IE11 */
+            elem.msRequestFullscreen();
+        }
     }
 };
