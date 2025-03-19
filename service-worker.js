@@ -6,8 +6,10 @@ const CACHE_ASSETS = [
     "manifest.json",
     "logo.png",
     "favicon.ico",
-    "screenshot_mobile.png",
-    "screenshot_desktop.png"
+    "icons/icon-192.png",
+    "icons/icon-512.png",
+    "icons/screenshot_mobile.png",
+    "icons/screenshot_desktop.png"
 ];
 
 // Install Service Worker & Cache Files
