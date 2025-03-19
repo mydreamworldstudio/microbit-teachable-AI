@@ -52,6 +52,7 @@ input {
     margin-bottom: 20px;
 }
 
+/* ✅ Button styling */
 button {
     padding: 12px 20px;
     font-size: 18px;
@@ -67,7 +68,27 @@ button:hover {
     background: #0056b3;
 }
 
-/* ✅ New webcam container to fix spacing and add white border */
+/* ✅ Button container to align buttons side-by-side */
+.button-container {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+/* ✅ Style for switch camera button (📷) */
+#switchCameraButton {
+    padding: 12px;
+    font-size: 20px;
+    width: 50px;
+    text-align: center;
+    background: #28a745;
+}
+
+#switchCameraButton:hover {
+    background: #218838;
+}
+
+/* ✅ Webcam container for better spacing */
 #webcam-container {
     position: relative;
     width: 90%;
