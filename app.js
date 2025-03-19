@@ -18,18 +18,32 @@ window.onload = function () {
         switchCameraBtn.addEventListener("click", switchCamera);
     }
 
-    // Event Listeners
+    // Load Model Button Click
     if (loadModelBtn) {
         loadModelBtn.addEventListener("click", () => {
             enterFullScreen(); // ✅ Force fullscreen on Load Model click
             loadTeachableMachineModel();
         });
     }
-    
+
+    // ✅ Connect Button Click (Fix: Runs requestDevice inside user gesture)
     if (connectBtn) {
-        connectBtn.addEventListener("click", () => {
-            enterFullScreen(); // ✅ Force fullscreen on Connect click
-            connectMicrobit();
+        connectBtn.addEventListener("click", async function () {
+            try {
+                enterFullScreen(); // ✅ Force fullscreen on Connect click
+
+                console.log("🔍 Searching for micro:bit...");
+                uBitDevice = await navigator.bluetooth.requestDevice({
+                    filters: [{ namePrefix: "BBC micro:bit" }],
+                    optionalServices: ["6e400001-b5a3-f393-e0a9-e50e24dcca9e"]
+                });
+
+                console.log("🔗 Connecting to GATT Server...");
+                await connectToGattServer();
+
+            } catch (error) {
+                console.error("❌ Connection failed:", error);
+            }
         });
     }
 
@@ -151,23 +165,7 @@ window.onload = function () {
         }
     }
 
-    // ✅ Connect Micro:bit
-    async function connectMicrobit() {
-        try {
-            console.log("🔍 Searching for micro:bit...");
-            uBitDevice = await navigator.bluetooth.requestDevice({
-                filters: [{ namePrefix: "BBC micro:bit" }],
-                optionalServices: ["6e400001-b5a3-f393-e0a9-e50e24dcca9e"]
-            });
-
-            console.log("🔗 Connecting to GATT Server...");
-            await connectToGattServer();
-
-        } catch (error) {
-            console.error("❌ Connection failed:", error);
-        }
-    }
-
+    // ✅ Connect to micro:bit GATT Server
     async function connectToGattServer() {
         try {
             if (!uBitDevice) return;
